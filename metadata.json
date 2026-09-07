@@ -1,0 +1,6 @@
+{
+  "name": "Apna Radio – Purani Dhunein",
+  "description": "An authentic nostalgic Indian vintage cassette radio web player for evergreen Bollywood melodies and YouTube playlists.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
