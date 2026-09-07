@@ -175,7 +175,7 @@ export default function App() {
 
   return (
     <div
-      className="relative min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-between overflow-x-hidden overflow-y-auto lg:overflow-hidden text-[#f4ecd8]"
+      className="relative min-h-screen flex flex-col overflow-x-hidden overflow-y-auto text-[#f4ecd8]"
       style={{
         backgroundColor: '#1b0f09',
         backgroundImage: `
@@ -195,7 +195,7 @@ export default function App() {
         </div>
       </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col flex-1 h-full justify-between pb-1">
+      <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 md:gap-1.5">
         {/* Top Vintage Sign Header */}
         <Header
           onOpenAddPlaylist={() => setIsAddModalOpen(true)}
@@ -204,10 +204,10 @@ export default function App() {
           songCount={activePlaylist?.videos?.length || 0}
         />
 
-        {/* Main Content Area: Large Centered Radio + Sidebar on large screens */}
-        <main className="flex-1 flex flex-col xl:flex-row items-center justify-center gap-3 px-2 sm:px-4 my-auto min-h-0">
+        {/* Main Content Area: Centered Radio + Sidebar on large screens */}
+        <main className="flex flex-col xl:flex-row items-center gap-1 sm:gap-1.5 md:gap-0 lg:gap-2 px-2 sm:px-4 py-0 sm:py-0.5 md:py-0 min-h-0">
           {/* Dominant Vintage Radio Centerpiece */}
-          <div className="flex-1 w-full max-w-4xl flex flex-col items-center justify-center">
+          <div className="w-full max-w-4xl flex flex-col items-center justify-center">
             <VintageRadio
               currentSong={currentSong}
               isPlaying={isPlaying}
@@ -250,7 +250,9 @@ export default function App() {
         </main>
 
         {/* Bottom Vintage Footer */}
-        <Footer />
+        <div className="mt-1 sm:mt-1.5 md:mt-1 shrink-0">
+          <Footer />
+        </div>
       </div>
 
       {/* Hidden/Minimized YouTube IFrame API Embed (Offscreen to comply with YouTube embedding rules without breaking vintage illusion) */}

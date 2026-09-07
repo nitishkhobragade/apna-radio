@@ -21,13 +21,23 @@ export const SeekBar: React.FC<SeekBarProps> = ({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      e.preventDefault();
+
       const bar = barRef.current;
       if (!bar || duration <= 0) return;
+
+      const target = e.currentTarget;
+      try {
+        target.setPointerCapture(e.pointerId);
+      } catch {
+        // fallback
+      }
 
       const rect = bar.getBoundingClientRect();
       const calculateSeconds = (clientX: number) => {
         const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
-        const pct = x / rect.width;
+        const pct = rect.width > 0 ? x / rect.width : 0;
         return pct * duration;
       };
 
@@ -35,16 +45,29 @@ export const SeekBar: React.FC<SeekBarProps> = ({
       onSeek(newSeconds);
 
       const onPointerMove = (moveEv: PointerEvent) => {
+        moveEv.stopPropagation();
+        if (moveEv.cancelable) {
+          moveEv.preventDefault();
+        }
         onSeek(calculateSeconds(moveEv.clientX));
       };
 
-      const onPointerUp = () => {
+      const onPointerUp = (upEv: PointerEvent) => {
+        try {
+          if (target.hasPointerCapture(upEv.pointerId)) {
+            target.releasePointerCapture(upEv.pointerId);
+          }
+        } catch {
+          // ignore
+        }
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
       };
 
-      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointermove', onPointerMove, { passive: false });
       window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
     },
     [duration, onSeek]
   );
@@ -74,7 +97,8 @@ export const SeekBar: React.FC<SeekBarProps> = ({
         onPointerDown={handlePointerDown}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative flex-1 h-3 rounded-full bg-[#140d08] border border-[#4a3421] p-0.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.95)] cursor-pointer group flex items-center"
+        className="relative flex-1 h-3 rounded-full bg-[#140d08] border border-[#4a3421] p-0.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.95)] cursor-pointer group flex items-center touch-none"
+        style={{ touchAction: 'none', WebkitUserSelect: 'none' }}
       >
         {/* Glow rail */}
         <div className="relative w-full h-1.5 rounded-full bg-[#20150d] overflow-hidden">

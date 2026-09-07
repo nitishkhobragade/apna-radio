@@ -3,25 +3,25 @@ import { Linkedin, Github, Instagram, Globe } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="relative w-full z-20 shrink-0 border-t border-[#3a2213] bg-[#140a05]/95 backdrop-blur-xs py-1 px-3 sm:px-6 select-none">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-[11px] sm:text-xs font-mono">
+    <footer className="relative w-full z-20 shrink-0 border-t border-[#3a2213] bg-[#140a05]/95 backdrop-blur-xs py-1 px-2 sm:px-6 select-none">
+      <div className="max-w-7xl mx-auto flex flex-row items-center justify-between gap-2 text-[10px] sm:text-xs font-mono">
         {/* Left: Copyright Credit */}
-        <div className="flex items-center gap-1.5 text-[#bfa07d]">
-          <span className="text-[#e5bf7d] font-serif font-bold tracking-wide">अपना रेडियो</span>
+        <div className="flex items-center gap-1 sm:gap-1.5 text-[#bfa07d] truncate">
+          <span className="text-[#e5bf7d] font-serif font-bold tracking-wide whitespace-nowrap">अपना रेडियो</span>
           <span className="text-[#6d4e2a]">•</span>
-          <span className="text-[#a88a68]">Created by</span>
+          <span className="text-[#a88a68] hidden xs:inline whitespace-nowrap">Created by</span>
           <a
             href="https://nitishkhobragade.github.io/portfolio.nitish/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#fce5c0] font-semibold hover:text-[#fbbf24] transition-colors underline decoration-[#6d4e2a] hover:decoration-[#fbbf24]"
+            className="text-[#fce5c0] font-semibold hover:text-[#fbbf24] transition-colors underline decoration-[#6d4e2a] hover:decoration-[#fbbf24] whitespace-nowrap"
           >
             Nitish Khobragade
           </a>
         </div>
 
         {/* Right: Social Media Profiles */}
-        <div className="flex items-center gap-2 sm:gap-3 text-[#bfa07d]">
+        <div className="flex items-center gap-1.5 sm:gap-3 text-[#bfa07d] shrink-0">
           <a
             href="https://in.linkedin.com/in/nitishkhobragade"
             target="_blank"

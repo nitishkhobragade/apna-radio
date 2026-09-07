@@ -11,7 +11,7 @@ export const RadioSpeaker: React.FC<RadioSpeakerProps> = ({ isPlaying, side }) =
   return (
     <div className="flex flex-col items-center gap-0.5 select-none shrink">
       <div
-        className="relative flex items-center justify-center w-10 h-10 sm:w-13 sm:h-13 md:w-16 md:h-16 lg:w-18 lg:h-18 aspect-square rounded-full shrink transition-all duration-200"
+        className="relative flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 md:w-13 md:h-13 lg:w-15 lg:h-15 aspect-square rounded-full shrink transition-all duration-200"
         title={`${side === 'left' ? 'Left Channel (CH-L)' : 'Right Channel (CH-R)'} Hi-Fi Speaker`}
       >
         {/* Outer Polished Brass Beveled Ring */}

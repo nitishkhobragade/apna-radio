@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { radioAmbiance } from '../utils/radioAmbiance';
-import { Volume2, VolumeX, Keyboard, Info } from 'lucide-react';
+import { Keyboard, Info } from 'lucide-react';
 
 interface ChaiStallAtmosphereProps {
   currentSongTitle?: string;
@@ -13,47 +12,82 @@ export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
   artist,
   playlistName,
 }) => {
-  const [isStaticPlaying, setIsStaticPlaying] = useState<boolean>(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState<boolean>(false);
 
-  const toggleStaticAmbiance = () => {
-    const active = radioAmbiance.toggle();
-    setIsStaticPlaying(active);
-  };
-
   return (
-    <div className="relative w-full max-w-4xl mx-auto px-2 mt-1 sm:mt-2 select-none shrink-0">
+    <div className="relative w-full max-w-4xl mx-auto px-1 sm:px-2 mt-0.5 select-none shrink-0">
       {/* Wooden chai table surface on which radio rests */}
-      <div className="relative rounded-lg py-1.5 px-3 bg-gradient-to-b from-[#2d1b10] via-[#21120a] to-[#160a05] border-t-2 border-[#6e4624] shadow-[0_8px_16px_rgba(0,0,0,0.85)] flex flex-row items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Cutting Chai Glass with Steam Effect */}
+      <div className="relative rounded-lg py-1 px-2.5 sm:px-3 bg-gradient-to-b from-[#2d1b10] via-[#21120a] to-[#160a05] border-t-2 border-[#6e4624] shadow-[0_6px_12px_rgba(0,0,0,0.85)] flex flex-row items-center justify-between gap-1.5 sm:gap-3">
+        {/* Left: Realistic Tapri Cutting Chai Glass with continuous tea smoke rising */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-end gap-1.5">
-            {/* Glass 1 of Cutting Chai */}
+          <div className="relative flex items-end pt-3 pb-0.5">
+            {/* Continuous Realistic Tea Smoke Plumes Rising from rim */}
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 w-7 h-8 pointer-events-none overflow-visible flex justify-center z-30">
+              {/* Plume 1 */}
+              <div
+                className="absolute bottom-0 w-2 h-4.5 rounded-full bg-gradient-to-t from-white/40 via-white/20 to-transparent blur-[1.5px] animate-tea-smoke-1"
+                style={{ left: '25%' }}
+              />
+              {/* Plume 2 */}
+              <div
+                className="absolute bottom-0 w-2.5 h-5.5 rounded-full bg-gradient-to-t from-white/45 via-white/25 to-transparent blur-[2px] animate-tea-smoke-2"
+                style={{ left: '45%' }}
+              />
+              {/* Plume 3 */}
+              <div
+                className="absolute bottom-0 w-1.5 h-4 rounded-full bg-gradient-to-t from-white/35 via-white/15 to-transparent blur-[1px] animate-tea-smoke-3"
+                style={{ left: '60%' }}
+              />
+            </div>
+
+            {/* Brass Saucer / Coaster */}
+            <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-8 sm:w-9 h-1 rounded-full bg-gradient-to-r from-[#946d33] via-[#e5c07b] to-[#785324] border-t border-[#fbe4bd] shadow-xs" />
+
+            {/* Realistic Traditional Indian 6-Ribbed Tapri Cutting Chai Glass */}
             <div
-              className="relative w-6 h-8 sm:w-7 sm:h-9 rounded-b-sm border border-white/20 shadow-[0_2px_4px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col justify-end p-0.5"
+              className="relative w-5 sm:w-6 h-6.5 sm:h-7.5 rounded-b-sm border-t border-x border-white/40 shadow-[0_3px_6px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col justify-end p-[1px]"
               style={{
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.4) 100%)',
+                background:
+                  'linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.06) 40%, rgba(0,0,0,0.4) 100%)',
+                boxShadow:
+                  'inset 0 1px 2px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.7), 0 3px 6px rgba(0,0,0,0.9)',
               }}
-              title="गरम कटिंग चाय (Cutting Chai)"
+              title="गरम मसाला कटिंग चाय (Fresh Steaming Cutting Chai)"
             >
-              <div className="w-full h-5 sm:h-6 rounded-b bg-gradient-to-t from-[#c9742c] via-[#df8f3e] to-[#f4be77] relative shadow-inner">
-                <div className="w-full h-0.5 bg-[#fff2db]/60" />
+              {/* Glass Vertical Facet Rib Reflections */}
+              <div className="absolute inset-0 flex justify-between pointer-events-none px-0.5 opacity-40">
+                <div className="w-[1px] h-full bg-white/70" />
+                <div className="w-[1px] h-full bg-black/40" />
+                <div className="w-[1px] h-full bg-white/60" />
+                <div className="w-[1px] h-full bg-black/40" />
+                <div className="w-[1px] h-full bg-white/70" />
               </div>
-              <div className="absolute -top-2 left-1.5 w-1 h-2 rounded-full bg-white/30 blur-[0.5px] animate-pulse" />
-              <div className="absolute -top-2.5 left-3 w-1 h-2.5 rounded-full bg-white/25 blur-[0.5px] animate-pulse" style={{ animationDelay: '300ms' }} />
+
+              {/* Rich Masala Chai Tea Liquid */}
+              <div className="w-full h-4 sm:h-5 rounded-b-xs bg-gradient-to-t from-[#8d4715] via-[#cf7729] to-[#ea9c4b] relative shadow-inner">
+                {/* Chai Creamy Surface / Malai Foam Ring */}
+                <div className="w-full h-0.5 bg-gradient-to-r from-[#fff3df]/70 via-[#ffe4ba]/90 to-[#fff3df]/70 shadow-xs" />
+
+                {/* Subtle bubble in chai */}
+                <div className="absolute top-0.5 left-1 w-0.5 h-0.5 rounded-full bg-white/40 blur-[0.2px]" />
+                <div className="absolute bottom-0.5 right-1 w-0.5 h-0.5 rounded-full bg-[#522709]" />
+              </div>
+
+              {/* Glass Reflection Highlight Sheen */}
+              <div className="absolute top-0 left-0.5 w-0.5 h-full bg-gradient-to-b from-white/60 via-transparent to-transparent pointer-events-none" />
             </div>
           </div>
 
           {/* Nostalgic Chai Stall Hand-lettered Chalk Script */}
           <div className="hidden sm:flex flex-col">
             <span
-              className="text-xs text-[#f7d6a5] font-serif italic leading-none"
+              className="text-[11px] text-[#f7d6a5] font-serif italic leading-none"
               style={{ fontFamily: "'Kalam', cursive, serif" }}
             >
               Gaane Wahi... Ehsaas Naye...
             </span>
-            <span className="text-[9px] text-[#caa06a] flex items-center gap-1 font-mono">
-              ☕ चाय की चुस्की • यादें
+            <span className="text-[8.5px] text-[#caa06a] flex items-center gap-1 font-mono leading-tight mt-0.5">
+              ☕ ताज़ा कटिंग चाय • यादें
             </span>
           </div>
         </div>
@@ -72,31 +106,17 @@ export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
           </div>
         )}
 
-        {/* Right: Ambient static audio toggle and online indicator */}
+        {/* Right: Keyboard shortcuts and online indicator (Mute/Unmute static button removed) */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Vintage Radio Static Hum Ambiance Button */}
-          <button
-            type="button"
-            onClick={toggleStaticAmbiance}
-            title={isStaticPlaying ? 'Turn off retro radio static' : 'Turn on vintage radio AM static crackle'}
-            className={`px-2 py-1 rounded border text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer ${
-              isStaticPlaying
-                ? 'bg-[#522b10] border-[#e49b38] text-[#fcd34d] shadow-[0_0_6px_rgba(228,155,56,0.5)]'
-                : 'bg-[#1e130b] border-[#4a331f] text-[#baa080] hover:border-[#8c6239]'
-            }`}
-          >
-            {isStaticPlaying ? <Volume2 className="w-3 h-3 text-[#f59e0b]" /> : <VolumeX className="w-3 h-3" />}
-            <span className="hidden sm:inline">{isStaticPlaying ? 'AM Static ON' : 'AM Static'}</span>
-          </button>
-
           {/* Keyboard shortcuts toggle */}
           <button
             type="button"
             onClick={() => setShowKeyboardHelp(prev => !prev)}
             title="Keyboard Controls"
-            className="p-1 rounded border border-[#4a331f] bg-[#1e130b] text-[#baa080] hover:text-[#fcd34d] hover:border-[#8c6239] transition-colors cursor-pointer"
+            className="p-1 rounded border border-[#4a331f] bg-[#1e130b] text-[#baa080] hover:text-[#fcd34d] hover:border-[#8c6239] transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono px-1.5"
           >
             <Keyboard className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Keys</span>
           </button>
 
           {/* Status Badge */}

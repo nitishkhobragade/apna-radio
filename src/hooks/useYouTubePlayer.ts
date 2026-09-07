@@ -49,6 +49,7 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
           width: '200',
           videoId: initialVideoId || 'vXq_gLw1-f0',
           playerVars: {
+            autoplay: 1,
             playsinline: 1,
             controls: 0,
             disablekb: 1,
@@ -65,6 +66,12 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
               setVolumeState(85);
               const dur = event.target.getDuration();
               if (dur && dur > 0) setDuration(dur);
+              // Automatic start player playing current song on website open
+              try {
+                event.target.playVideo();
+              } catch (playErr) {
+                console.warn('Autoplay initial attempt:', playErr);
+              }
             },
             onStateChange: (event: any) => {
               const state = event.data;

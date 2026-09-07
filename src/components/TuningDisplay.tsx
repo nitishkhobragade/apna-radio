@@ -16,7 +16,7 @@ export const TuningDisplay: React.FC<TuningDisplayProps> = ({
   const needlePos = Math.min(95, Math.max(5, progressPercent));
 
   return (
-    <div className="relative w-full rounded-md bg-[#120d09] border border-[#3d2c1f] p-1 sm:p-1.5 shadow-[inset_0_3px_8px_rgba(0,0,0,0.95)] overflow-hidden select-none">
+    <div className="relative w-full rounded-md bg-[#120d09] border border-[#3d2c1f] p-0.5 sm:p-1 shadow-[inset_0_3px_8px_rgba(0,0,0,0.95)] overflow-hidden select-none">
       {/* Warm amber backlight effect */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#ffaa33]/15 via-[#ff8800]/10 to-transparent pointer-events-none" />
 
@@ -24,10 +24,10 @@ export const TuningDisplay: React.FC<TuningDisplayProps> = ({
       <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
       {/* Scales container */}
-      <div className="relative z-10 flex flex-col gap-0.5 sm:gap-1 px-1.5 sm:px-2 font-mono text-[9px] sm:text-[10px]">
+      <div className="relative z-10 flex flex-col gap-0.2 sm:gap-0.5 px-1 sm:px-2 font-mono text-[8.5px] sm:text-[9.5px]">
         {/* FM Frequency Row */}
-        <div className="flex items-center justify-between text-[#e4b270] tracking-wider font-semibold border-b border-[#3b2b1e]/80 pb-0.5 leading-none">
-          <span className="font-bold text-[#f59e0b] w-7">FM</span>
+        <div className="flex items-center justify-between text-[#e4b270] tracking-wider font-semibold border-b border-[#3b2b1e]/80 pb-0.2 leading-none">
+          <span className="font-bold text-[#f59e0b] w-6">FM</span>
           <div className="flex-1 flex justify-between px-2 text-[#f2ce9d]">
             <span>88</span>
             <span>92</span>
@@ -36,12 +36,12 @@ export const TuningDisplay: React.FC<TuningDisplayProps> = ({
             <span>104</span>
             <span>108</span>
           </div>
-          <span className="text-[#a88252] w-7 text-right font-normal text-[8px] sm:text-[9px]">MHz</span>
+          <span className="text-[#a88252] w-6 text-right font-normal text-[7.5px] sm:text-[8.5px]">MHz</span>
         </div>
 
         {/* AM Frequency Row */}
         <div className="flex items-center justify-between text-[#c4975f] tracking-wider leading-none">
-          <span className="font-bold text-[#d97706] w-7">AM</span>
+          <span className="font-bold text-[#d97706] w-6">AM</span>
           <div className="flex-1 flex justify-between px-2 text-[#d1b084]">
             <span>530</span>
             <span>700</span>
@@ -50,15 +50,15 @@ export const TuningDisplay: React.FC<TuningDisplayProps> = ({
             <span>1400</span>
             <span>1600</span>
           </div>
-          <span className="text-[#a88252] w-7 text-right font-normal text-[8px] sm:text-[9px]">kHz</span>
+          <span className="text-[#a88252] w-6 text-right font-normal text-[7.5px] sm:text-[8.5px]">kHz</span>
         </div>
 
         {/* Tick marks ruler line */}
-        <div className="relative h-1.5 w-full flex justify-between items-end px-2 mt-0.5">
+        <div className="relative h-1 w-full flex justify-between items-end px-2 mt-0.2">
           {Array.from({ length: 25 }).map((_, i) => (
             <div
               key={i}
-              className={`w-[1px] bg-[#664b32] ${i % 4 === 0 ? 'h-1.5 bg-[#d1a062]' : 'h-0.5'}`}
+              className={`w-[1px] bg-[#664b32] ${i % 4 === 0 ? 'h-1 bg-[#d1a062]' : 'h-0.5'}`}
             />
           ))}
         </div>
