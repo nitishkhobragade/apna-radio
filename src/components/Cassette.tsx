@@ -109,13 +109,25 @@ export const Cassette: React.FC<CassetteProps> = ({
           </div>
 
           {/* Song Title and Artist printed on the cassette label */}
-          <div className="mt-0.5 pt-0.5 border-t border-[#b89f81]/50 text-center">
-            <h4
-              className="text-[10px] sm:text-[11px] font-bold text-[#2b1b11] truncate px-1 font-serif tracking-tight leading-tight"
+          <div className="mt-0.5 pt-0.5 border-t border-[#b89f81]/50 text-center overflow-hidden">
+            <div
+              key={title}
+              className="relative w-full overflow-hidden py-0.5 group cursor-default [mask-image:linear-gradient(to_right,transparent_0,black_8px,black_calc(100%-8px),transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0,black_8px,black_calc(100%-8px),transparent_100%)]"
               title={title}
             >
-              {title}
-            </h4>
+              <div className="animate-cassette-marquee">
+                {[0, 1, 2, 3].map((idx) => (
+                  <div key={idx} className="flex shrink-0 items-center gap-2.5 pr-6" aria-hidden={idx > 0}>
+                    <h4 className="text-[10px] sm:text-[11px] font-bold text-[#2b1b11] font-serif tracking-tight leading-tight whitespace-nowrap">
+                      {title}
+                    </h4>
+                    <span className="text-[#8c2d1b] text-[8px] font-mono select-none opacity-70">
+                      •
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
             <p
               className="text-[8px] sm:text-[9px] text-[#714f33] truncate px-1 font-sans italic leading-tight"
               title={artist}

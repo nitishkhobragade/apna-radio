@@ -34,6 +34,25 @@
   animation: teaSmokeRising 3.9s cubic-bezier(0.4, 0, 0.2, 1) infinite 2.2s;
 }
 
+@keyframes cassetteMarquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-cassette-marquee {
+  display: flex;
+  width: max-content;
+  animation: cassetteMarquee 22s linear infinite;
+}
+
+.animate-cassette-marquee:hover {
+  animation-play-state: paused;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
