@@ -1,6 +1,6 @@
 {
-  "name": "Apna Radio – Purani Dhunein",
-  "description": "An authentic nostalgic Indian vintage cassette radio web player for evergreen Bollywood melodies and YouTube playlists.",
+  "name": "Apna Radio | Vintage Transistor & Cassette Player by Nitish Khobragade",
+  "description": "Apna Radio (अपना रेडियो) by Nitish Khobragade: An authentic nostalgic 80s & 90s Indian vintage transistor and cassette tape web player with ambient cutting chai sounds, curated Bollywood golden hits, and custom YouTube playlist support.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

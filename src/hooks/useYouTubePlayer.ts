@@ -23,7 +23,7 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
-  const [volume, setVolumeState] = useState<number>(85);
+  const [volume, setVolumeState] = useState<number>(100);
   const [isBuffering, setIsBuffering] = useState<boolean>(false);
 
   // Stable callback refs
@@ -62,8 +62,8 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
           events: {
             onReady: (event: any) => {
               setIsReady(true);
-              event.target.setVolume(85);
-              setVolumeState(85);
+              event.target.setVolume(100);
+              setVolumeState(100);
               const dur = event.target.getDuration();
               if (dur && dur > 0) setDuration(dur);
               // Automatic start player playing current song on website open

@@ -139,7 +139,7 @@ export const VolumeSlider: React.FC<VolumeSliderProps> = ({ volume, onChange }) 
         <div
           className="absolute top-1 bottom-1 w-4 rounded bg-gradient-to-b from-[#dfb470] via-[#ae7e3b] to-[#784e1b] border border-[#f3d395] shadow-[0_1px_4px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.4)] flex flex-col items-center justify-center -translate-x-1/2 pointer-events-none transition-transform active:scale-95"
           style={{
-            left: `calc(6px + ${(volume / 100) * (trackRef.current ? Math.max(0, trackRef.current.clientWidth - 12) : 100)}px)`,
+            left: `calc(6px + ${volume}% - ${volume * 0.12}px)`,
           }}
         >
           {/* Knurled vertical grip grooves on slider knob */}
