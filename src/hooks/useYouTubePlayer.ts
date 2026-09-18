@@ -8,13 +8,22 @@ declare global {
   }
 }
 
+export interface TrackChangeInfo {
+  videoId: string;
+  title: string;
+  author: string;
+  index?: number;
+  playlistIds?: string[];
+}
+
 interface UseYouTubePlayerProps {
   initialVideoId?: string;
   onSongEnded?: () => void;
   onError?: (errorMessage: string) => void;
+  onTrackInfo?: (info: TrackChangeInfo) => void;
 }
 
-export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYouTubePlayerProps) {
+export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrackInfo }: UseYouTubePlayerProps) {
   const playerRef = useRef<any>(null);
   const containerId = useRef(`yt-player-${Math.random().toString(36).substring(2, 9)}`).current;
 
@@ -32,6 +41,9 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
 
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+
+  const onTrackInfoRef = useRef(onTrackInfo);
+  onTrackInfoRef.current = onTrackInfo;
 
   // Initialize player once YT is ready
   useEffect(() => {
@@ -83,6 +95,26 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
                     setIsBuffering(false);
                     const dur = event.target.getDuration();
                     if (dur) setDuration(dur);
+
+                    // Sync video/playlist info whenever a video starts playing
+                    try {
+                      if (typeof event.target.getVideoData === 'function') {
+                        const vData = event.target.getVideoData();
+                        const pList = typeof event.target.getPlaylist === 'function' ? event.target.getPlaylist() : null;
+                        const pIndex = typeof event.target.getPlaylistIndex === 'function' ? event.target.getPlaylistIndex() : -1;
+                        if (onTrackInfoRef.current && vData && vData.video_id) {
+                          onTrackInfoRef.current({
+                            videoId: vData.video_id,
+                            title: vData.title || '',
+                            author: vData.author || '',
+                            index: pIndex >= 0 ? pIndex : undefined,
+                            playlistIds: Array.isArray(pList) && pList.length > 0 ? pList : undefined,
+                          });
+                        }
+                      }
+                    } catch (trackInfoErr) {
+                      console.warn('Track info sync error:', trackInfoErr);
+                    }
                     break;
                   case window.YT.PlayerState.PAUSED:
                     setPlayerStatus('PAUSED');
@@ -259,6 +291,62 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
     }
   }, []);
 
+  const loadPlaylist = useCallback((playlistId: string, index: number = 0, autoPlay: boolean = true) => {
+    if (!playlistId) return;
+    setCurrentTime(0);
+    if (playerRef.current) {
+      try {
+        if (autoPlay && typeof playerRef.current.loadPlaylist === 'function') {
+          playerRef.current.loadPlaylist({
+            list: playlistId,
+            listType: 'playlist',
+            index: index || 0,
+          });
+          setIsPlaying(true);
+        } else if (typeof playerRef.current.cuePlaylist === 'function') {
+          playerRef.current.cuePlaylist({
+            list: playlistId,
+            listType: 'playlist',
+            index: index || 0,
+          });
+          setIsPlaying(false);
+        }
+      } catch (e) {
+        console.warn('loadPlaylist error', e);
+      }
+    }
+  }, []);
+
+  const playNextVideo = useCallback(() => {
+    if (playerRef.current && typeof playerRef.current.nextVideo === 'function') {
+      try {
+        playerRef.current.nextVideo();
+      } catch (e) {
+        console.warn('nextVideo error', e);
+      }
+    }
+  }, []);
+
+  const playPreviousVideo = useCallback(() => {
+    if (playerRef.current && typeof playerRef.current.previousVideo === 'function') {
+      try {
+        playerRef.current.previousVideo();
+      } catch (e) {
+        console.warn('previousVideo error', e);
+      }
+    }
+  }, []);
+
+  const playVideoAt = useCallback((index: number) => {
+    if (playerRef.current && typeof playerRef.current.playVideoAt === 'function') {
+      try {
+        playerRef.current.playVideoAt(index);
+      } catch (e) {
+        console.warn('playVideoAt error', e);
+      }
+    }
+  }, []);
+
   return {
     containerId,
     isReady,
@@ -275,5 +363,9 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError }: UseYo
     skipSeconds,
     setVolume,
     loadVideo,
+    loadPlaylist,
+    playNextVideo,
+    playPreviousVideo,
+    playVideoAt,
   };
 }

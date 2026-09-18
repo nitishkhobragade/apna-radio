@@ -14,12 +14,12 @@ export async function fetchYouTubePlaylistRss(playlistId: string): Promise<strin
   const rssUrl = `https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(playlistId)}`;
 
   const proxies = [
-    // 1. AllOrigins JSON API wrapper (robust and widely used)
+    // 1. AllOrigins JSON proxy
     {
       name: 'allorigins-json',
       fetch: async () => {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 7000);
+        const timeout = setTimeout(() => controller.abort(), 2500);
         try {
           const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`, {
             signal: controller.signal,
@@ -36,52 +36,12 @@ export async function fetchYouTubePlaylistRss(playlistId: string): Promise<strin
       },
     },
 
-    // 2. Corsproxy.io direct query parameter
-    {
-      name: 'corsproxy-io',
-      fetch: async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 7000);
-        try {
-          const res = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`, {
-            signal: controller.signal,
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const text = await res.text();
-          if (!text || !text.trim()) throw new Error('Empty text from corsproxy');
-          return text;
-        } finally {
-          clearTimeout(timeout);
-        }
-      },
-    },
-
-    // 3. Corsproxy.io alternative URL format
-    {
-      name: 'corsproxy-io-alt',
-      fetch: async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 7000);
-        try {
-          const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(rssUrl)}`, {
-            signal: controller.signal,
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const text = await res.text();
-          if (!text || !text.trim()) throw new Error('Empty text from corsproxy alt');
-          return text;
-        } finally {
-          clearTimeout(timeout);
-        }
-      },
-    },
-
-    // 4. CodeTabs CORS Proxy
+    // 2. CodeTabs CORS Proxy
     {
       name: 'codetabs',
       fetch: async () => {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 7000);
+        const timeout = setTimeout(() => controller.abort(), 2500);
         try {
           const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`, {
             signal: controller.signal,
@@ -90,42 +50,6 @@ export async function fetchYouTubePlaylistRss(playlistId: string): Promise<strin
           const text = await res.text();
           if (!text || !text.trim()) throw new Error('Empty text from codetabs');
           return text;
-        } finally {
-          clearTimeout(timeout);
-        }
-      },
-    },
-
-    // 5. AllOrigins Raw proxy
-    {
-      name: 'allorigins-raw',
-      fetch: async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 7000);
-        try {
-          const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`, {
-            signal: controller.signal,
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const text = await res.text();
-          if (!text || !text.trim()) throw new Error('Empty text from allorigins raw');
-          return text;
-        } finally {
-          clearTimeout(timeout);
-        }
-      },
-    },
-
-    // 6. Direct fetch fallback
-    {
-      name: 'direct',
-      fetch: async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        try {
-          const res = await fetch(rssUrl, { signal: controller.signal });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return await res.text();
         } finally {
           clearTimeout(timeout);
         }

@@ -61,6 +61,47 @@ export function extractVideoId(input: string): string | null {
   const embedMatch = trimmed.match(/\/(?:embed|v|shorts)\/([a-zA-Z0-9_-]{11})/);
   if (embedMatch) return embedMatch[1];
 
+  // 5. img.youtube.com or i.ytimg.com/vi/ID/
+  const thumbMatch = trimmed.match(/\/vi\/([a-zA-Z0-9_-]{11})\//);
+  if (thumbMatch) return thumbMatch[1];
+
+  return null;
+}
+
+/**
+ * Fetches video or playlist metadata directly via YouTube's official oEmbed API.
+ * This endpoint natively supports CORS without requiring any API keys or proxy servers.
+ */
+export async function fetchYouTubeOEmbed(urlOrId: string, isPlaylist: boolean = false): Promise<{ title: string; author: string; thumbnail: string; firstVideoId?: string } | null> {
+  try {
+    let targetUrl = '';
+    if (isPlaylist) {
+      targetUrl = `https://www.youtube.com/playlist?list=${urlOrId}`;
+    } else {
+      targetUrl = `https://www.youtube.com/watch?v=${urlOrId}`;
+    }
+
+    const endpoint = `https://www.youtube.com/oembed?url=${encodeURIComponent(targetUrl)}&format=json`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(endpoint, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      const thumbnail = data.thumbnail_url || '';
+      const firstVideoId = extractVideoId(thumbnail) || undefined;
+      return {
+        title: data.title || (isPlaylist ? 'YouTube Playlist' : 'YouTube Track'),
+        author: data.author_name || 'YouTube Music',
+        thumbnail: thumbnail || (firstVideoId ? `https://img.youtube.com/vi/${firstVideoId}/hqdefault.jpg` : ''),
+        firstVideoId
+      };
+    }
+  } catch (e) {
+    console.warn('YouTube oEmbed fetch error (non-fatal):', e);
+  }
   return null;
 }
 

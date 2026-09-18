@@ -23,6 +23,7 @@ export default function App() {
     nextSong,
     prevSong,
     addPlaylistFromYouTube,
+    syncTrackFromPlayer,
     deletePlaylist,
   } = usePlaylists();
 
@@ -66,6 +67,9 @@ export default function App() {
     skipSeconds,
     setVolume,
     loadVideo,
+    loadPlaylist,
+    playNextVideo,
+    playPreviousVideo,
   } = useYouTubePlayer({
     initialVideoId: currentSong?.videoId,
     onSongEnded: () => {
@@ -75,20 +79,44 @@ export default function App() {
     onError: (errorMsg) => {
       addToast(errorMsg, 'error');
     },
+    onTrackInfo: (info) => {
+      syncTrackFromPlayer(info);
+    },
   });
 
-  // Keep track of previously loaded song to avoid re-triggering
+  // Keep track of previously loaded song/playlist to avoid re-triggering loops
+  const loadedPlaylistIdRef = useRef<string | null>(null);
   const loadedVideoIdRef = useRef<string | null>(null);
 
-  // Sync current song with YouTube player
+  // Sync current playlist & song with YouTube player
   useEffect(() => {
-    if (currentSong && currentSong.videoId) {
-      if (loadedVideoIdRef.current !== currentSong.videoId) {
+    if (!activePlaylist) return;
+
+    const isCustomPlaylistWithId =
+      activePlaylist.isCustom &&
+      activePlaylist.youtubePlaylistId &&
+      !activePlaylist.youtubePlaylistId.startsWith('custom-song-') &&
+      activePlaylist.youtubePlaylistId.length > 11;
+
+    if (isCustomPlaylistWithId) {
+      if (loadedPlaylistIdRef.current !== activePlaylist.id) {
+        loadedPlaylistIdRef.current = activePlaylist.id;
+        loadedVideoIdRef.current = null;
+        loadPlaylist(activePlaylist.youtubePlaylistId, currentSongIndex || 0, true);
+      } else if (currentSong && loadedVideoIdRef.current !== currentSong.videoId) {
         loadedVideoIdRef.current = currentSong.videoId;
         loadVideo(currentSong.videoId, true);
       }
+    } else {
+      loadedPlaylistIdRef.current = null;
+      if (currentSong && currentSong.videoId) {
+        if (loadedVideoIdRef.current !== currentSong.videoId) {
+          loadedVideoIdRef.current = currentSong.videoId;
+          loadVideo(currentSong.videoId, true);
+        }
+      }
     }
-  }, [currentSong, loadVideo]);
+  }, [activePlaylist, currentSong, currentSongIndex, loadPlaylist, loadVideo]);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -97,16 +125,37 @@ export default function App() {
 
   // Navigation handlers
   const handlePrev = useCallback(() => {
+    const isCustomPlaylist =
+      activePlaylist.isCustom &&
+      activePlaylist.youtubePlaylistId &&
+      !activePlaylist.youtubePlaylistId.startsWith('custom-song-');
+
+    if (currentTime > 3) {
+      seekTo(0);
+      playVideo();
+      return;
+    }
+    if (isCustomPlaylist) {
+      playPreviousVideo();
+    }
     const result = prevSong(currentTime);
     if (result && result.restarted) {
       seekTo(0);
       playVideo();
     }
-  }, [prevSong, currentTime, seekTo, playVideo]);
+  }, [prevSong, currentTime, seekTo, playVideo, activePlaylist, playPreviousVideo]);
 
   const handleNext = useCallback(() => {
+    const isCustomPlaylist =
+      activePlaylist.isCustom &&
+      activePlaylist.youtubePlaylistId &&
+      !activePlaylist.youtubePlaylistId.startsWith('custom-song-');
+
+    if (isCustomPlaylist) {
+      playNextVideo();
+    }
     nextSong();
-  }, [nextSong]);
+  }, [nextSong, activePlaylist, playNextVideo]);
 
   const handleSkipBack = useCallback(() => {
     skipSeconds(-10);
