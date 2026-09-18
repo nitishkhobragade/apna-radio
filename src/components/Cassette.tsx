@@ -74,12 +74,12 @@ export const Cassette: React.FC<CassetteProps> = ({
               </div>
 
               {/* Central Rectangular Artwork Area (YouTube Thumbnail) */}
-              <div className="relative flex-1 h-7 sm:h-8.5 md:h-9.5 rounded overflow-hidden border border-[#523d29] shadow-[0_1px_4px_rgba(0,0,0,0.7)] bg-[#1e150f] group">
+              <div className="relative flex-1 h-[42px] sm:h-[48px] rounded overflow-hidden border border-[#523d29] shadow-[0_1px_4px_rgba(0,0,0,0.7)] bg-[#1e150f] group">
                 <img
                   src={thumbnail}
                   alt={title}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover filter contrast-[1.05] brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
+                  className="w-full h-full object-cover object-center filter contrast-[1.05] brightness-[0.95] group-hover:scale-105 transition-transform duration-700"
                 />
                 {/* Vintage overlay glass reflection */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none" />
