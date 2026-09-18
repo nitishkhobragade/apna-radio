@@ -149,9 +149,14 @@ export function usePlaylists() {
 
       if (playlistId) {
         // Fast path: Check if this playlist is already one of the preset playlists
-        const existingPreset = PRESET_PLAYLISTS.find(p => p.youtubePlaylistId === playlistId);
+        // Supports exact match or partial/prefix match (e.g. if URL has truncated ID or extra params)
+        const existingPreset = PRESET_PLAYLISTS.find(
+          p => p.youtubePlaylistId === playlistId ||
+               playlistId.startsWith(p.youtubePlaylistId.slice(0, 15)) ||
+               p.youtubePlaylistId.startsWith(playlistId.slice(0, 15))
+        );
         if (existingPreset) {
-          setPlaylists(prev => [existingPreset, ...prev.filter(p => p.youtubePlaylistId !== playlistId)]);
+          setPlaylists(prev => [existingPreset, ...prev.filter(p => p.youtubePlaylistId !== existingPreset.youtubePlaylistId)]);
           setActivePlaylistId(existingPreset.id);
           setCurrentSongIndex(0);
           return {

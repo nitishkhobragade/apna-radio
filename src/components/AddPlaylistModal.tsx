@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { extractPlaylistId } from '../utils/youtube';
+import { extractPlaylistId, extractVideoId } from '../utils/youtube';
 import { X, Music, AlertCircle, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface AddPlaylistModalProps {
@@ -25,13 +25,14 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({
 
     const raw = (linkToUse !== undefined ? linkToUse : urlInput).trim();
     if (!raw) {
-      setErrorMessage('कृपया YouTube playlist लिंक दर्ज करें (Please paste a YouTube playlist URL).');
+      setErrorMessage('कृपया YouTube playlist या video लिंक दर्ज करें (Please paste a YouTube URL).');
       return;
     }
 
     const playlistId = extractPlaylistId(raw);
-    if (!playlistId) {
-      setErrorMessage('अरे! यह लिंक अमान्य है। कृपया वैध YouTube playlist लिंक डालें (Invalid YouTube Playlist link).');
+    const videoId = !playlistId ? extractVideoId(raw) : null;
+    if (!playlistId && !videoId) {
+      setErrorMessage('अरे! यह लिंक अमान्य है। कृपया वैध YouTube playlist या video लिंक डालें (Invalid YouTube link).');
       return;
     }
 
