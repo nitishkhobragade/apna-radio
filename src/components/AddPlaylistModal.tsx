@@ -168,13 +168,13 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({
                 type="button"
                 disabled={loading}
                 onClick={() =>
-                  handleQuickSelect('https://www.youtube.com/playlist?list=PLFgquLnL59alGJcdc0BEZJb2p7IgkL0Ce')
+                  handleQuickSelect('https://youtube.com/playlist?list=RDHfyx0xybClo')
                 }
                 className="w-full text-left p-2 rounded-md bg-[#f4e4c7] hover:bg-[#ebd3ac] border border-[#b8956c] text-[#331c0a] text-[11px] font-mono transition-colors flex items-center justify-between cursor-pointer group"
               >
                 <div className="truncate pr-2">
-                  <span className="font-bold text-[#8c2d1b]">Top Hindi Classics:</span>{' '}
-                  <span className="opacity-80">https://www.youtube.com/playlist?list=PLFgquLnL59alGJcdc0BEZJb2p7IgkL0Ce</span>
+                  <span className="font-bold text-[#8c2d1b]">Indian Bus Driver Classics:</span>{' '}
+                  <span className="opacity-80">https://youtube.com/playlist?list=RDHfyx0xybClo</span>
                 </div>
                 <span className="shrink-0 px-2 py-0.5 rounded bg-[#8c2d1b] text-white text-[9px] font-sans font-bold group-hover:bg-[#a63722]">
                   LOAD

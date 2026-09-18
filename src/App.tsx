@@ -317,17 +317,14 @@ export default function App() {
             <div className="space-y-3.5 text-xs text-[#402312] font-sans">
               <div className="p-3 bg-[#f3e3c3] rounded-lg border border-[#825c34]/40">
                 <h4 className="font-bold font-serif text-sm text-[#8c2d1b] mb-1">
-                  1. YouTube Data API Key (YOUTUBE_API_KEY)
+                  1. 100% Client-Side &amp; Free (No API Key Required)
                 </h4>
                 <p className="leading-relaxed">
-                  Go to <strong>Google AI Studio Settings &gt; Secrets</strong>, or add it to your environment as:
+                  The radio now fetches any public YouTube playlist directly in your browser using YouTube&apos;s public RSS feed and CORS proxy fallbacks. No API keys or server setup needed!
                 </p>
-                <code className="block mt-1 p-2 bg-[#2d1a0e] text-[#fcd34d] rounded font-mono text-[11px]">
-                  YOUTUBE_API_KEY="AIzaSy..."
-                </code>
-                <p className="text-[11px] text-[#6b4728] mt-1.5">
-                  This enables live fetching of any public YouTube playlist, pagination, titles, and high-res video thumbnails.
-                </p>
+                <div className="mt-2 p-2 bg-[#e8f5e9] text-[#1b5e20] rounded border border-[#a5d6a7] text-[11px] font-medium">
+                  ✓ Fully compatible with Firebase Hosting, GitHub Pages, and static web deployments.
+                </div>
               </div>
 
               <div className="p-3 bg-[#f3e3c3] rounded-lg border border-[#825c34]/40">

@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Playlist, VideoItem } from '../types';
 import { PRESET_PLAYLISTS } from '../config';
-import { extractPlaylistId } from '../utils/youtube';
+import {
+  extractPlaylistId,
+  extractVideoId,
+  fetchYouTubePlaylistRss,
+  parseYouTubeRssXml,
+} from '../utils/youtube';
 
 const STORAGE_PLAYLISTS_KEY = 'apna_radio_saved_playlists_v3';
 const STORAGE_ACTIVE_PLAYLIST_KEY = 'apna_radio_active_playlist_id_v3';
@@ -127,45 +132,84 @@ export function usePlaylists() {
     return { restarted: false, index: newIndex };
   }, [activePlaylist, currentSongIndex]);
 
-  // Add new playlist from YouTube URL or ID
+  // Add new playlist from YouTube URL or ID (100% Client-Side via RSS + CORS Proxies)
   const addPlaylistFromYouTube = useCallback(async (urlOrId: string): Promise<{ success: boolean; message: string; playlist?: Playlist }> => {
     const playlistId = extractPlaylistId(urlOrId);
+    const videoId = !playlistId ? extractVideoId(urlOrId) : null;
 
-    if (!playlistId) {
+    if (!playlistId && !videoId) {
       return {
         success: false,
-        message: 'अरे! यह वैध YouTube playlist URL नहीं है (Invalid YouTube Playlist URL or ID).'
+        message: 'अरे! यह वैध YouTube playlist या वीडियो URL नहीं है (Invalid YouTube URL).'
       };
     }
 
     try {
-      const response = await fetch(`/api/playlist?playlistId=${encodeURIComponent(playlistId)}`);
-      const data = await response.json();
+      let newPlaylist: Playlist;
 
-      if (!response.ok) {
-        if (data.error === 'NO_API_KEY') {
+      if (playlistId) {
+        // Fast path: Check if this playlist is already one of the preset playlists
+        const existingPreset = PRESET_PLAYLISTS.find(p => p.youtubePlaylistId === playlistId);
+        if (existingPreset) {
+          setPlaylists(prev => [existingPreset, ...prev.filter(p => p.youtubePlaylistId !== playlistId)]);
+          setActivePlaylistId(existingPreset.id);
+          setCurrentSongIndex(0);
           return {
-            success: false,
-            message: 'YouTube API Key (YOUTUBE_API_KEY) सर्वर सेटिंग्स में उपलब्ध नहीं है। कृपया AI Studio Secrets में कुंजी जोड़ें।'
+            success: true,
+            message: `सफलतापूर्वक लोड की गई: "${existingPreset.title}" (${existingPreset.videos.length} गाने)`,
+            playlist: existingPreset
           };
         }
+
+        // Fetch client-side via YouTube public RSS feed with CORS proxy fallbacks
+        const rssXml = await fetchYouTubePlaylistRss(playlistId);
+        const parsed = parseYouTubeRssXml(rssXml, playlistId);
+
+        if (!parsed.videos || parsed.videos.length === 0) {
+          return {
+            success: false,
+            message: 'इस प्लेलिस्ट में कोई सार्वजनिक गाने नहीं मिले। कृपया सुनिश्चित करें कि प्लेलिस्ट "Public" या "Unlisted" है।'
+          };
+        }
+
+        newPlaylist = {
+          id: `custom-${playlistId}-${Date.now()}`,
+          youtubePlaylistId: playlistId,
+          title: parsed.title,
+          description: `${parsed.videos.length} evergreen songs • ${parsed.author}`,
+          thumbnail: parsed.videos[0]?.thumbnail || `https://img.youtube.com/vi/${parsed.videos[0]?.videoId}/hqdefault.jpg`,
+          videos: parsed.videos,
+          isCustom: true
+        };
+      } else if (videoId) {
+        // Single video URL support
+        newPlaylist = {
+          id: `custom-song-${videoId}-${Date.now()}`,
+          youtubePlaylistId: videoId,
+          title: 'YouTube Track',
+          description: 'Single YouTube Song',
+          thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          videos: [
+            {
+              videoId,
+              title: 'YouTube Song',
+              channelTitle: 'YouTube',
+              duration: '03:45',
+              durationSeconds: 225,
+              thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+              position: 0
+            }
+          ],
+          isCustom: true
+        };
+      } else {
         return {
           success: false,
-          message: data.message || 'Playlist unavailable. Please check the YouTube playlist link.'
+          message: 'कृपया वैध YouTube लिंक दर्ज करें।'
         };
       }
 
-      const newPlaylist: Playlist = {
-        id: data.id || `custom-${playlistId}-${Date.now()}`,
-        youtubePlaylistId: data.youtubePlaylistId || playlistId,
-        title: data.title || 'Classic Hindi Playlist',
-        description: data.description || '',
-        thumbnail: data.thumbnail || (data.videos[0]?.thumbnail) || '',
-        videos: data.videos || [],
-        isCustom: true
-      };
-
-      setPlaylists(prev => [newPlaylist, ...prev.filter(p => p.youtubePlaylistId !== playlistId)]);
+      setPlaylists(prev => [newPlaylist, ...prev.filter(p => p.youtubePlaylistId !== newPlaylist.youtubePlaylistId)]);
       setActivePlaylistId(newPlaylist.id);
       setCurrentSongIndex(0);
 
@@ -174,11 +218,17 @@ export function usePlaylists() {
         message: `सफलतापूर्वक जोड़ी गई: "${newPlaylist.title}" (${newPlaylist.videos.length} गाने)`,
         playlist: newPlaylist
       };
-    } catch (err) {
-      console.error('Network failure adding playlist:', err);
+    } catch (err: any) {
+      console.error('Client-side playlist fetch failed:', err);
+      if (err?.message === 'PLAYLIST_NOT_FOUND') {
+        return {
+          success: false,
+          message: 'प्लेलिस्ट नहीं मिली (404 Not Found)। कृपया सुनिश्चित करें कि YouTube playlist लिंक सही और Public है।'
+        };
+      }
       return {
         success: false,
-        message: 'नेटवर्क संपर्क में त्रुटि आई (Network failure connecting to radio server).'
+        message: 'प्लेलिस्ट लोड करने में त्रुटि आई। कृपया सुनिश्चित करें कि यह YouTube playlist "Public" है।'
       };
     }
   }, []);

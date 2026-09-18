@@ -38,6 +38,33 @@ export function extractPlaylistId(input: string): string | null {
 }
 
 /**
+ * Extracts a single YouTube video ID from various URL formats.
+ */
+export function extractVideoId(input: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+
+  // 1. Raw 11-char ID (standard YouTube video ID)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // 2. youtu.be shortlinks
+  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) return shortMatch[1];
+
+  // 3. watch?v=...
+  const vMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (vMatch) return vMatch[1];
+
+  // 4. embed or v URL
+  const embedMatch = trimmed.match(/\/(?:embed|v|shorts)\/([a-zA-Z0-9_-]{11})/);
+  if (embedMatch) return embedMatch[1];
+
+  return null;
+}
+
+/**
  * Formats seconds into MM:SS format (e.g. 02:34)
  */
 export function formatTime(seconds: number): string {
@@ -47,3 +74,5 @@ export function formatTime(seconds: number): string {
   const secs = totalSec % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
+
+export * from './youtubeRss';
