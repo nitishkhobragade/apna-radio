@@ -3,6 +3,7 @@ export interface VideoItem {
   title: string;
   thumbnail: string;
   channelTitle: string;
+  artist?: string;
   position: number;
   duration?: string;
   durationSeconds?: number;

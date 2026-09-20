@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { extractPlaylistId, extractVideoId } from '../utils/youtube';
-import { X, Music, AlertCircle, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { X, Music, AlertCircle, Loader2, Sparkles, CheckCircle2, ClipboardPaste } from 'lucide-react';
 
 interface AddPlaylistModalProps {
   isOpen: boolean;
@@ -17,8 +17,39 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [statusStep, setStatusStep] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleClear = () => {
+    setUrlInput('');
+    setErrorMessage(null);
+    inputRef.current?.focus();
+  };
+
+  const handlePasteAndPlay = async () => {
+    setErrorMessage(null);
+    let pasted = '';
+
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+        pasted = await navigator.clipboard.readText();
+      }
+    } catch (err) {
+      console.warn('Clipboard read failed or permission denied:', err);
+    }
+
+    const targetUrl = (pasted || urlInput || '').trim();
+
+    if (!targetUrl) {
+      setErrorMessage('क्लिपबोर्ड खाली है! कृपया पहले YouTube लिंक कॉपी करें (Clipboard is empty).');
+      inputRef.current?.focus();
+      return;
+    }
+
+    setUrlInput(targetUrl);
+    await handleAdd(targetUrl);
+  };
 
   const handleAdd = async (linkToUse?: string) => {
     setErrorMessage(null);
@@ -129,17 +160,31 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({
                 <Sparkles className="w-3 h-3 text-[#d97706]" /> 100% Free • No API Key Needed
               </span>
             </label>
-            <input
-              type="text"
-              value={urlInput}
-              onChange={(e) => {
-                setUrlInput(e.target.value);
-                if (errorMessage) setErrorMessage(null);
-              }}
-              placeholder="https://youtube.com/playlist?list=PL..."
-              disabled={loading}
-              className="w-full px-3.5 py-2.5 rounded-md bg-[#fffaf0] border-2 border-[#9e744b] text-[#291407] placeholder-[#a68668] text-xs sm:text-sm focus:outline-none focus:border-[#8c2d1b] shadow-inner font-mono"
-            />
+            <div className="relative flex items-center">
+              <input
+                ref={inputRef}
+                type="text"
+                value={urlInput}
+                onChange={(e) => {
+                  setUrlInput(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                placeholder="https://youtube.com/playlist?list=PL..."
+                disabled={loading}
+                className="w-full pl-3.5 pr-10 py-2.5 rounded-md bg-[#fffaf0] border-2 border-[#9e744b] text-[#291407] placeholder-[#a68668] text-xs sm:text-sm focus:outline-none focus:border-[#8c2d1b] shadow-inner font-mono"
+              />
+              {urlInput.length > 0 && !loading && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  title="Clear input (साफ़ करें)"
+                  aria-label="Clear URL"
+                  className="absolute right-2.5 w-6 h-6 rounded-full bg-[#ebd3ac] hover:bg-[#8c2d1b] text-[#54331a] hover:text-[#fff2da] border border-[#b8956c] hover:border-[#8c2d1b] flex items-center justify-center transition-all cursor-pointer shadow-xs focus:outline-none focus:ring-1 focus:ring-[#8c2d1b]"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Quick preset chips to try with 1-click */}
@@ -211,7 +256,7 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#825c34]/30">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-[#825c34]/30">
             <button
               type="button"
               onClick={onClose}
@@ -219,6 +264,16 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({
               className="px-4 py-2 rounded-md border-2 border-[#825c34] text-[#4a2e19] font-serif font-bold text-xs uppercase tracking-wider hover:bg-[#efe0c3] transition-colors cursor-pointer"
             >
               CANCEL
+            </button>
+            <button
+              type="button"
+              onClick={handlePasteAndPlay}
+              disabled={loading}
+              title="क्लिपबोर्ड से लिंक पेस्ट करके तुरंत चलाएं (Paste link from clipboard and play immediately)"
+              className="px-4 py-2 rounded-md bg-gradient-to-b from-[#b87333] to-[#8a4e1d] hover:from-[#c8813f] hover:to-[#995822] text-[#fff6e6] font-serif font-bold text-xs uppercase tracking-wider border border-[#f0c292] shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5 text-[#ffe7c8]" />
+              <span>PASTE & PLAY</span>
             </button>
             <button
               type="submit"

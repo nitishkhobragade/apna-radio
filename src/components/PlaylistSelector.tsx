@@ -233,7 +233,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
               {viewingPlaylist.videos
                 .filter(v =>
                   v.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  v.channelTitle.toLowerCase().includes(searchQuery.toLowerCase())
+                  (v.artist || v.channelTitle || '').toLowerCase().includes(searchQuery.toLowerCase())
                 )
                 .map((video, idx) => {
                   const isPlayingSong = viewingPlaylist.id === activePlaylistId && idx === currentSongIndex;
@@ -269,7 +269,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
                           {video.title}
                         </div>
                         <div className="text-[10px] opacity-80 truncate font-sans flex items-center gap-2">
-                          <span>{video.channelTitle}</span>
+                          <span>{video.artist || video.channelTitle}</span>
                           {video.duration && (
                             <span className="font-mono text-[9px] px-1 rounded bg-black/15 font-semibold">
                               {video.duration}

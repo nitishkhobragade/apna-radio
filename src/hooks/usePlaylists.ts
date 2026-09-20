@@ -7,6 +7,8 @@ import {
   fetchYouTubeOEmbed,
   fetchYouTubePlaylistRss,
   parseYouTubeRssXml,
+  fetchFullPlaylistDataset,
+  resolvePlaylistTrackTitles,
 } from '../utils/youtube';
 
 const STORAGE_PLAYLISTS_KEY = 'apna_radio_saved_playlists_v3';
@@ -91,6 +93,22 @@ export function usePlaylists() {
     }
   }, [currentSongIndex]);
 
+  // Auto-enrich any existing saved tracks in playlists that show generic "Track #"
+  useEffect(() => {
+    playlists.forEach((p) => {
+      const hasGeneric = p.videos.some(
+        (v) => !v.title || v.title.startsWith('Track #') || v.title === 'Classic Track'
+      );
+      if (hasGeneric) {
+        resolvePlaylistTrackTitles(p.videos, (resolved) => {
+          setPlaylists((latest) =>
+            latest.map((item) => (item.id === p.id ? { ...item, videos: resolved } : item))
+          );
+        });
+      }
+    });
+  }, []);
+
   // Current active playlist object
   const activePlaylist = playlists.find(p => p.id === activePlaylistId) || playlists[0] || PRESET_PLAYLISTS[0];
 
@@ -167,41 +185,40 @@ export function usePlaylists() {
           };
         }
 
-        // 1. Fetch metadata directly via official YouTube oEmbed API (100% CORS-friendly, zero proxies or API keys needed)
-        const oembed = await fetchYouTubeOEmbed(playlistId, true);
+        // 1. Fetch metadata directly via official YouTube oEmbed API
+        const oembedPromise = fetchYouTubeOEmbed(playlistId, true);
 
-        // 2. Try fetching RSS video feed in background (fast 2.5s timeout)
-        let rssVideos: VideoItem[] | null = null;
-        try {
-          const rssXml = await fetchYouTubePlaylistRss(playlistId);
-          if (rssXml) {
-            const parsed = parseYouTubeRssXml(rssXml, playlistId);
-            if (parsed.videos && parsed.videos.length > 0) {
-              rssVideos = parsed.videos;
-            }
-          }
-        } catch (rssErr) {
-          console.warn('RSS proxy skipped (non-fatal):', rssErr);
-        }
+        // 2. Fetch full playlist dataset (Invidious API JSON or RSS XML)
+        const datasetPromise = fetchFullPlaylistDataset(playlistId);
 
-        const title = oembed?.title || 'YouTube Playlist';
-        const author = oembed?.author || 'YouTube';
-        const firstVidId = oembed?.firstVideoId || 'vXq_gLw1-f0';
-        const thumb = oembed?.thumbnail || `https://img.youtube.com/vi/${firstVidId}/hqdefault.jpg`;
+        const [oembed, dataset] = await Promise.all([oembedPromise, datasetPromise]);
 
-        const videos: VideoItem[] = (rssVideos && rssVideos.length > 0)
-          ? rssVideos
+        const title = dataset?.title || oembed?.title || 'YouTube Playlist';
+        const author = dataset?.author || oembed?.author || 'YouTube Music';
+        const firstVidId = dataset?.videos?.[0]?.videoId || oembed?.firstVideoId || 'vXq_gLw1-f0';
+        const thumb = dataset?.videos?.[0]?.thumbnail || oembed?.thumbnail || `https://img.youtube.com/vi/${firstVidId}/hqdefault.jpg`;
+
+        let videos: VideoItem[] = (dataset?.videos && dataset.videos.length > 0)
+          ? dataset.videos
           : [
               {
                 videoId: firstVidId,
                 title: title,
                 channelTitle: author,
+                artist: author,
                 duration: '03:45',
                 durationSeconds: 225,
                 thumbnail: thumb,
                 position: 0,
               }
             ];
+
+        // If any songs still have generic titles, enrich them
+        if (videos.some(v => !v.title || v.title.startsWith('Track #') || v.title === 'Classic Track')) {
+          resolvePlaylistTrackTitles(videos, (resolved) => {
+            setPlaylists(latest => latest.map(item => item.id === `custom-${playlistId}` ? { ...item, videos: resolved } : item));
+          });
+        }
 
         newPlaylist = {
           id: `custom-${playlistId}`,
@@ -276,18 +293,36 @@ export function usePlaylists() {
 
         let updatedVideos = [...p.videos];
 
+        let hasNewGenericTracks = false;
+
         // If player discovered the full playlist video IDs from YouTube
         if (info.playlistIds && info.playlistIds.length > 1 && (updatedVideos.length <= 1 || updatedVideos.length < info.playlistIds.length)) {
           updatedVideos = info.playlistIds.map((vId, idx) => {
             const existing = updatedVideos.find(v => v.videoId === vId);
-            if (existing) return existing;
+            if (existing && existing.title && !existing.title.startsWith('Track #') && existing.title !== 'Classic Track') {
+              return existing;
+            }
+            if (vId === info.videoId && info.title) {
+              return {
+                videoId: vId,
+                title: info.title,
+                channelTitle: info.author || p.description || 'YouTube Music',
+                artist: info.author || p.description || 'YouTube Music',
+                duration: existing?.duration || '03:30',
+                durationSeconds: existing?.durationSeconds || 210,
+                thumbnail: existing?.thumbnail || `https://img.youtube.com/vi/${vId}/hqdefault.jpg`,
+                position: idx,
+              };
+            }
+            hasNewGenericTracks = true;
             return {
               videoId: vId,
-              title: vId === info.videoId && info.title ? info.title : `Track #${idx + 1}`,
-              channelTitle: vId === info.videoId && info.author ? info.author : p.description || 'YouTube Music',
-              duration: '03:30',
-              durationSeconds: 210,
-              thumbnail: `https://img.youtube.com/vi/${vId}/hqdefault.jpg`,
+              title: existing?.title || `Track #${idx + 1}`,
+              channelTitle: existing?.channelTitle || p.description || 'YouTube Music',
+              artist: existing?.artist || existing?.channelTitle || p.description || 'YouTube Music',
+              duration: existing?.duration || '03:30',
+              durationSeconds: existing?.durationSeconds || 210,
+              thumbnail: existing?.thumbnail || `https://img.youtube.com/vi/${vId}/hqdefault.jpg`,
               position: idx,
             };
           });
@@ -303,10 +338,19 @@ export function usePlaylists() {
                 videoId: info.videoId,
                 title: info.title || v.title,
                 channelTitle: info.author || v.channelTitle,
+                artist: info.author || v.artist || v.channelTitle,
               };
             }
             return v;
           });
+        }
+
+        if (hasNewGenericTracks) {
+          setTimeout(() => {
+            resolvePlaylistTrackTitles(updatedVideos, (resolved) => {
+              setPlaylists(latest => latest.map(item => item.id === p.id ? { ...item, videos: resolved } : item));
+            });
+          }, 100);
         }
 
         return {
