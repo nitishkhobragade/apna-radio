@@ -12,6 +12,7 @@ import { ChaiStallAtmosphere } from './components/ChaiStallAtmosphere';
 import { AddPlaylistModal } from './components/AddPlaylistModal';
 import { SongSearchModal } from './components/SongSearchModal';
 import { HistoryModal } from './components/HistoryModal';
+import { AddToPlaylistModal } from './components/AddToPlaylistModal';
 import { PlaylistSelector } from './components/PlaylistSelector';
 import { ErrorToast, ToastMessage } from './components/ErrorToast';
 import { Footer } from './components/Footer';
@@ -19,6 +20,7 @@ import { usePlaylists } from './hooks/usePlaylists';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { DEFAULT_YOUTUBE_PLAYLIST_ID } from './config';
 import { SearchResultItem } from './utils/youtubeSearch';
+import { VideoItem } from './types';
 import { KeyRound, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -39,6 +41,9 @@ export default function App() {
     playHistorySong,
     playAllHistory,
     createPlaylistFromHistory,
+    createNewPlaylist,
+    addSongToPlaylist,
+    removeSongFromPlaylist,
     removeFromHistory,
     clearHistory,
     syncTrackFromPlayer,
@@ -141,7 +146,34 @@ export default function App() {
   const [isSelectModalOpen, setIsSelectModalOpen] = useState<boolean>(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState<boolean>(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+  const [isAddToPlaylistModalOpen, setIsAddToPlaylistModalOpen] = useState<boolean>(false);
+  const [songToAddToPlaylist, setSongToAddToPlaylist] = useState<VideoItem | null>(null);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState<boolean>(false);
+
+  const handleOpenAddToPlaylist = useCallback((song: VideoItem | SearchResultItem) => {
+    const videoItem: VideoItem = {
+      videoId: song.videoId,
+      title: song.title,
+      channelTitle: (song as any).channelTitle || (song as any).author || 'YouTube Music',
+      artist: (song as any).artist || (song as any).author || 'YouTube Music',
+      thumbnail: song.thumbnail,
+      duration: song.duration,
+      durationSeconds: song.durationSeconds,
+      position: 0,
+    };
+    setSongToAddToPlaylist(videoItem);
+    setIsAddToPlaylistModalOpen(true);
+  }, []);
+
+  const handleAddToPlaylist = useCallback((playlistId: string, song: VideoItem) => {
+    const res = addSongToPlaylist(playlistId, song);
+    addToast(res.message, res.alreadyExisted ? 'info' : 'success');
+  }, [addSongToPlaylist, addToast]);
+
+  const handleCreateAndAdd = useCallback((title: string, song: VideoItem) => {
+    const pl = createNewPlaylist(title, 'उपयोगकर्ता द्वारा बनाई गई प्लेलिस्ट', [song]);
+    addToast(`नई प्लेलिस्ट "${pl.title}" बनाई गई और गाना जोड़ दिया गया!`, 'success');
+  }, [createNewPlaylist, addToast]);
 
   const handlePlaySearchedSong = useCallback((track: SearchResultItem) => {
     playSearchedSong(track);
@@ -269,8 +301,8 @@ export default function App() {
         </div>
       </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col md:gap-1.5">
-        {/* Top Vintage Sign Header with Quad Button Setup */}
+      <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col gap-2 xs:gap-2.5 sm:gap-1.5 md:gap-1">
+        {/* Top Vintage Sign Header (Quad layout on mobile, single-line side-by-side on larger screens) */}
         <Header
           onOpenAddPlaylist={() => setIsAddModalOpen(true)}
           onOpenSelectPlaylist={() => setIsSelectModalOpen(true)}
@@ -282,7 +314,7 @@ export default function App() {
         />
 
         {/* Main Content Area: Centered Radio + Sidebar on large screens */}
-        <main className="flex flex-col xl:flex-row items-center gap-1 sm:gap-1.5 md:gap-0 lg:gap-2 px-2 sm:px-4 py-0 sm:py-0.5 md:py-0 min-h-0">
+        <main className="flex flex-col xl:flex-row items-center gap-1 sm:gap-1 md:gap-0 lg:gap-2 px-2 sm:px-4 py-0 min-h-0 mt-1 xs:mt-1.5 sm:mt-0.5 md:mt-0">
           {/* Dominant Vintage Radio Centerpiece (Original 100% full scale, no scaling wrapper) */}
           <div className="w-full max-w-4xl flex flex-col items-center justify-center">
             <VintageRadio
@@ -307,6 +339,7 @@ export default function App() {
               currentSongTitle={currentSong?.title}
               artist={currentSong?.channelTitle}
               playlistName={activePlaylist?.title}
+              onOpenAddToPlaylist={() => currentSong && handleOpenAddToPlaylist(currentSong)}
             />
           </div>
 
@@ -321,13 +354,14 @@ export default function App() {
               onSelectPlaylist={selectPlaylist}
               onSelectSong={selectSong}
               onDeletePlaylist={deletePlaylist}
+              onOpenCreatePlaylist={() => setIsAddModalOpen(true)}
               isSidebar={true}
             />
           </div>
         </main>
 
         {/* Bottom Vintage Footer - directly below Chai Table with tight compact spacing */}
-        <div className="mt-1 sm:mt-1.5 md:mt-1 shrink-0">
+        <div className="mt-1 sm:mt-1 md:mt-0.5 shrink-0">
           <Footer />
         </div>
       </div>
@@ -340,11 +374,15 @@ export default function App() {
         <div id={containerId} />
       </div>
 
-      {/* Add Playlist Modal */}
+      {/* Add Playlist / Create Playlist Modal */}
       <AddPlaylistModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddPlaylist={handleAddPlaylist}
+        onCreatePlaylist={(title, desc) => {
+          const pl = createNewPlaylist(title, desc);
+          addToast(`नई प्लेलिस्ट "${pl.title}" बनाई गई!`, 'success');
+        }}
       />
 
       {/* Direct YouTube Song Search & Instant Play Modal */}
@@ -352,6 +390,7 @@ export default function App() {
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
         onPlaySong={handlePlaySearchedSong}
+        onOpenAddToPlaylist={handleOpenAddToPlaylist}
       />
 
       {/* Listening History Modal (Plays as Sequential Playlist & Supports Save to Playlist) */}
@@ -379,6 +418,17 @@ export default function App() {
           const pl = createPlaylistFromHistory(title);
           addToast(`नई प्लेलिस्ट बनाई गई: "${pl.title}"`, 'success');
         }}
+        onOpenAddToPlaylist={handleOpenAddToPlaylist}
+      />
+
+      {/* Add Song to Playlist Modal (YouTube-style Save to Playlist) */}
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistModalOpen}
+        onClose={() => setIsAddToPlaylistModalOpen(false)}
+        song={songToAddToPlaylist}
+        playlists={playlists}
+        onAddToPlaylist={handleAddToPlaylist}
+        onCreateAndAdd={handleCreateAndAdd}
       />
 
       {/* Select Playlist Modal (for mobile or toggle button) */}
@@ -397,6 +447,10 @@ export default function App() {
           setIsSelectModalOpen(false);
         }}
         onDeletePlaylist={deletePlaylist}
+        onOpenCreatePlaylist={() => {
+          setIsSelectModalOpen(false);
+          setIsAddModalOpen(true);
+        }}
         isSidebar={false}
       />
 

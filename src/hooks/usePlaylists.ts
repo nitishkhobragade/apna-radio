@@ -275,6 +275,82 @@ export function usePlaylists() {
     return newPlaylist;
   }, [history]);
 
+  // Create a brand new custom playlist (Empty or with initial songs)
+  const createNewPlaylist = useCallback((title: string, description: string = '', initialVideos: VideoItem[] = []): Playlist => {
+    const trimmedTitle = title.trim() || 'मेरी प्लेलिस्ट (My Playlist)';
+    const newId = `user-playlist-${Date.now()}`;
+    const newPlaylist: Playlist = {
+      id: newId,
+      youtubePlaylistId: `custom-${newId}`,
+      title: trimmedTitle,
+      description: description.trim() || 'उपयोगकर्ता द्वारा बनाई गई प्लेलिस्ट',
+      thumbnail: initialVideos[0]?.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80',
+      videos: initialVideos.map((v, i) => ({ ...v, position: i })),
+      isCustom: true,
+    };
+
+    setPlaylists(prev => [newPlaylist, ...prev]);
+    setActivePlaylistId(newId);
+    setCurrentSongIndex(0);
+    return newPlaylist;
+  }, []);
+
+  // Add any song to a specified playlist (like YouTube's "Save to playlist")
+  const addSongToPlaylist = useCallback((playlistId: string, song: VideoItem): { success: boolean; message: string; alreadyExisted?: boolean } => {
+    let result = { success: false, message: 'प्लेलिस्ट नहीं मिली।', alreadyExisted: false };
+
+    setPlaylists(prev => {
+      const target = prev.find(p => p.id === playlistId);
+      if (!target) return prev;
+
+      // Check if song already in playlist
+      const exists = target.videos.some(v => v.videoId === song.videoId);
+      if (exists) {
+        result = {
+          success: true,
+          alreadyExisted: true,
+          message: `यह गाना पहले से ही "${target.title}" में है।`,
+        };
+        return prev;
+      }
+
+      const newSongItem: VideoItem = {
+        ...song,
+        position: target.videos.length,
+      };
+
+      const updatedPlaylist: Playlist = {
+        ...target,
+        thumbnail: target.videos.length === 0 ? (song.thumbnail || target.thumbnail) : target.thumbnail,
+        videos: [...target.videos, newSongItem],
+      };
+
+      result = {
+        success: true,
+        alreadyExisted: false,
+        message: `सफलतापूर्वक जोड़ा गया: "${song.title}" को "${target.title}" में`,
+      };
+
+      return prev.map(p => p.id === playlistId ? updatedPlaylist : p);
+    });
+
+    return result;
+  }, []);
+
+  // Remove a song from a playlist
+  const removeSongFromPlaylist = useCallback((playlistId: string, videoId: string) => {
+    setPlaylists(prev => {
+      return prev.map(p => {
+        if (p.id !== playlistId) return p;
+        const filtered = p.videos.filter(v => v.videoId !== videoId).map((v, i) => ({ ...v, position: i }));
+        return {
+          ...p,
+          videos: filtered,
+        };
+      });
+    });
+  }, []);
+
   // Add new playlist from YouTube URL or ID
   const addPlaylistFromYouTube = useCallback(async (urlOrId: string): Promise<{ success: boolean; message: string; playlist?: Playlist }> => {
     const playlistId = extractPlaylistId(urlOrId);
@@ -568,6 +644,9 @@ export function usePlaylists() {
     playHistorySong,
     playAllHistory,
     createPlaylistFromHistory,
+    createNewPlaylist,
+    addSongToPlaylist,
+    removeSongFromPlaylist,
     selectPlaylist,
     selectSong,
     nextSong,

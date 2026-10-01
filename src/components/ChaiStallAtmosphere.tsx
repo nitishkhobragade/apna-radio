@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { Keyboard, Info } from 'lucide-react';
+import { Keyboard, Info, ListPlus } from 'lucide-react';
 
 interface ChaiStallAtmosphereProps {
   currentSongTitle?: string;
   artist?: string;
   playlistName?: string;
+  onOpenAddToPlaylist?: () => void;
 }
 
 export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
   currentSongTitle,
   artist,
   playlistName,
+  onOpenAddToPlaylist,
 }) => {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState<boolean>(false);
 
@@ -106,8 +108,20 @@ export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
           </div>
         )}
 
-        {/* Right: Keyboard shortcuts and online indicator (Mute/Unmute static button removed) */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: Add to playlist, Keyboard shortcuts and online indicator */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {onOpenAddToPlaylist && currentSongTitle && (
+            <button
+              type="button"
+              onClick={onOpenAddToPlaylist}
+              title="यह गाना प्लेलिस्ट में जोड़ें (Save to Playlist)"
+              className="p-1 rounded border border-[#6e4624] bg-[#341d10] text-[#fcd34d] hover:bg-[#4d2c18] hover:border-[#dfb270] transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-serif px-1.5 active:scale-95"
+            >
+              <ListPlus className="w-3.5 h-3.5 text-[#e5a044]" />
+              <span className="hidden xs:inline font-bold">सेव करें</span>
+            </button>
+          )}
+
           {/* Keyboard shortcuts toggle */}
           <button
             type="button"

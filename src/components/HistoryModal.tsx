@@ -18,6 +18,7 @@ interface HistoryModalProps {
   onRemoveItem: (videoId: string) => void;
   onClearHistory: () => void;
   onSaveAsPlaylist: (title: string) => void;
+  onOpenAddToPlaylist?: (song: HistoryItem) => void;
 }
 
 function formatTimeAgo(timestamp: number): string {
@@ -40,6 +41,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   onRemoveItem,
   onClearHistory,
   onSaveAsPlaylist,
+  onOpenAddToPlaylist,
 }) => {
   const [showSaveInput, setShowSaveInput] = useState<boolean>(false);
   const [newPlaylistTitle, setNewPlaylistTitle] = useState<string>('मेरी पसंदीदा धुनें');
@@ -279,6 +281,19 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
 
                 {/* Quick Actions */}
                 <div className="flex items-center gap-1 shrink-0">
+                  {onOpenAddToPlaylist && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenAddToPlaylist(song);
+                      }}
+                      title="प्लेलिस्ट में जोड़ें (Add to Playlist)"
+                      className="p-1.5 rounded-full hover:bg-[#8c2d1b]/10 text-[#8c2d1b] transition-colors cursor-pointer"
+                    >
+                      <ListPlus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {

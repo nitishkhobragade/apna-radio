@@ -6,13 +6,14 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, X, Loader2, Play, Music, Sparkles, AlertCircle, Disc3 } from 'lucide-react';
+import { Search, X, Loader2, Play, Music, Sparkles, AlertCircle, Disc3, ListPlus } from 'lucide-react';
 import { searchYouTubeVideos, SearchResultItem } from '../utils/youtubeSearch';
 
 interface SongSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPlaySong: (track: SearchResultItem) => void;
+  onOpenAddToPlaylist?: (track: SearchResultItem) => void;
 }
 
 const SUGGESTED_QUERIES = [
@@ -30,6 +31,7 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
   isOpen,
   onClose,
   onPlaySong,
+  onOpenAddToPlaylist,
 }) => {
   const [query, setQuery] = useState<string>('');
   const [results, setResults] = useState<SearchResultItem[]>([]);
@@ -325,18 +327,34 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Play Action Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTrackClick(track);
-                    }}
-                    className="px-2.5 py-1 rounded bg-[#8c2d1b] group-hover:bg-[#a63722] text-white font-serif font-bold text-[10px] sm:text-xs uppercase tracking-wider shrink-0 shadow-xs flex items-center gap-1 transition-colors"
-                  >
-                    <Play className="w-3 h-3 fill-current" />
-                    <span className="hidden xs:inline">बजाएं</span>
-                  </button>
+                  {/* Play & Add to Playlist Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {onOpenAddToPlaylist && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenAddToPlaylist(track);
+                        }}
+                        title="प्लेलिस्ट में जोड़ें (Add to Playlist)"
+                        className="px-2 py-1 rounded border border-[#825c34]/50 bg-[#faecd6] hover:bg-[#ebd7b5] text-[#381f10] text-[10px] sm:text-xs font-serif font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <ListPlus className="w-3.5 h-3.5 text-[#8c2d1b]" />
+                        <span className="hidden sm:inline">जोड़ें</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTrackClick(track);
+                      }}
+                      className="px-2.5 py-1 rounded bg-[#8c2d1b] group-hover:bg-[#a63722] text-white font-serif font-bold text-[10px] sm:text-xs uppercase tracking-wider shadow-xs flex items-center gap-1 transition-colors"
+                    >
+                      <Play className="w-3 h-3 fill-current" />
+                      <span className="hidden xs:inline">बजाएं</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

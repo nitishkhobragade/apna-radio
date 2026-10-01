@@ -1,3 +1,10 @@
+/**
+ * Project: Apna Radio (अपना रेडियो - विंटेज ट्रांजिस्टर प्लेयर)
+ * Concept, Design & Architecture: Nitish Khobragade
+ * Copyright (c) 2026 Nitish Khobragade. All rights reserved.
+ * GitHub: https://github.com/nitishkhobragade/apna-radio
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PlayerStatus } from '../types';
 
@@ -148,19 +155,19 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
             },
             onError: (event: any) => {
               console.warn('YouTube Player Event Error:', event.data);
-              let msg = 'गाने की धुन लोड करने में समस्या आई (Failed to play track).';
+              let msg = 'YouTube से परमिशन नहीं है, कृपया दूसरा गाना प्ले कीजिए';
               if (event.data === 101 || event.data === 150) {
-                msg = 'इस गाने का प्रसारण YouTube द्वारा प्रतिबंधित है, अगला गाना बजा रहे हैं...';
+                msg = 'YouTube से परमिशन नहीं है, कृपया दूसरा गाना प्ले कीजिए';
               } else if (event.data === 100) {
-                msg = 'यह गाना उपलब्ध नहीं है (Video not found or removed).';
+                msg = 'YouTube से परमिशन नहीं है या गाना उपलब्ध नहीं है, कृपया दूसरा गाना प्ले कीजिए';
+              } else if (event.data === 2) {
+                msg = 'अमान्य YouTube लिंक, कृपया दूसरा गाना प्ले कीजिए';
               }
               if (onErrorRef.current) onErrorRef.current(msg);
-              // If restricted, automatically try the next song
-              if (event.data === 101 || event.data === 150) {
-                setTimeout(() => {
-                  if (onSongEndedRef.current) onSongEndedRef.current();
-                }, 1200);
-              }
+              // If permission denied or video restricted, automatically skip to next song
+              setTimeout(() => {
+                if (onSongEndedRef.current) onSongEndedRef.current();
+              }, 2200);
             }
           }
         });

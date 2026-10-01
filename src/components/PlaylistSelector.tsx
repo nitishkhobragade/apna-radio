@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Playlist, VideoItem } from '../types';
-import { Music, Play, Check, Trash2, Search, X, Disc } from 'lucide-react';
+import { Music, Play, Check, Trash2, Search, X, Disc, Plus } from 'lucide-react';
 
 interface PlaylistSelectorProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface PlaylistSelectorProps {
   onSelectPlaylist: (id: string) => void;
   onSelectSong: (index: number) => void;
   onDeletePlaylist?: (id: string) => void;
+  onOpenCreatePlaylist?: () => void;
   isSidebar?: boolean;
 }
 
@@ -23,6 +24,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
   onSelectPlaylist,
   onSelectSong,
   onDeletePlaylist,
+  onOpenCreatePlaylist,
   isSidebar = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -70,7 +72,18 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {onOpenCreatePlaylist && (
+            <button
+              type="button"
+              onClick={onOpenCreatePlaylist}
+              title="नई प्लेलिस्ट बनाएं (Create Playlist)"
+              className="px-2 py-1 bg-[#8c2d1b] hover:bg-[#a63722] text-white rounded font-serif font-bold text-[10px] sm:text-xs uppercase flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+            >
+              <Plus className="w-3 h-3" />
+              <span>नई प्लेलिस्ट</span>
+            </button>
+          )}
           {!isSidebar && (
             <button
               onClick={onClose}
