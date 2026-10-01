@@ -224,7 +224,7 @@ export default function App() {
 
   return (
     <div
-      className="relative min-h-screen flex flex-col overflow-x-hidden overflow-y-auto text-[#f4ecd8]"
+      className="relative h-[100dvh] md:min-h-screen flex flex-col justify-between overflow-x-hidden max-md:overflow-y-hidden md:overflow-y-auto text-[#f4ecd8]"
       style={{
         backgroundColor: '#1b0f09',
         backgroundImage: `
@@ -244,7 +244,7 @@ export default function App() {
         </div>
       </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 md:gap-1.5">
+      <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col flex-1 min-h-0 justify-between md:gap-1.5">
         {/* Top Vintage Sign Header */}
         <Header
           onOpenAddPlaylist={() => setIsAddModalOpen(true)}
@@ -254,7 +254,7 @@ export default function App() {
         />
 
         {/* Main Content Area: Centered Radio + Sidebar on large screens */}
-        <main className="flex flex-col xl:flex-row items-center gap-1 sm:gap-1.5 md:gap-0 lg:gap-2 px-2 sm:px-4 py-0 sm:py-0.5 md:py-0 min-h-0">
+        <main className="flex flex-col xl:flex-row items-center justify-center gap-1 sm:gap-1.5 md:gap-0 lg:gap-2 px-1 sm:px-4 py-0 min-h-0 flex-1">
           {/* Dominant Vintage Radio Centerpiece */}
           <div className="w-full max-w-4xl flex flex-col items-center justify-center">
             <VintageRadio
@@ -299,7 +299,7 @@ export default function App() {
         </main>
 
         {/* Bottom Vintage Footer */}
-        <div className="mt-1 sm:mt-1.5 md:mt-1 shrink-0">
+        <div className="mt-0 shrink-0">
           <Footer />
         </div>
       </div>

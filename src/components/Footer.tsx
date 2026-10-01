@@ -14,9 +14,18 @@ export const Footer: React.FC = () => {
             href="https://nitishkhobragade.github.io/portfolio.nitish/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#fce5c0] font-semibold hover:text-[#fbbf24] transition-colors underline decoration-[#6d4e2a] hover:decoration-[#fbbf24] whitespace-nowrap"
+            title="Nitish Khobragade Portfolio & Creator Profile"
+            className="flex items-center gap-1.5 text-[#fce5c0] font-semibold hover:text-[#fbbf24] transition-colors underline decoration-[#6d4e2a] hover:decoration-[#fbbf24] whitespace-nowrap"
           >
-            Nitish Khobragade
+            <img
+              src="https://nitishkhobragade.github.io/portfolio.nitish/img/logo.png"
+              alt="Nitish Khobragade"
+              className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full object-cover border border-[#825c34]"
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+            <span>Nitish Khobragade</span>
           </a>
         </div>
 
