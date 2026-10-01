@@ -3,7 +3,7 @@ import { Linkedin, Github, Instagram, Globe } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="relative w-full z-20 shrink-0 border-t border-[#3a2213] bg-[#140a05]/95 backdrop-blur-xs py-1 px-2 sm:px-6 select-none">
+    <footer className="relative w-full z-20 shrink-0 border-t border-[#3a2213] bg-[#140a05]/95 backdrop-blur-xs py-1 sm:py-1.5 px-2 sm:px-6 select-none">
       <div className="max-w-7xl mx-auto flex flex-row items-center justify-between gap-2 text-[10px] sm:text-xs font-mono">
         {/* Left: Copyright Credit */}
         <div className="flex items-center gap-1 sm:gap-1.5 text-[#bfa07d] truncate">
