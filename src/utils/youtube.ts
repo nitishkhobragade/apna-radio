@@ -1,4 +1,11 @@
 /**
+ * Project: Apna Radio (अपना रेडियो - विंटेज ट्रांजिस्टर प्लेयर)
+ * Concept, Design & Architecture: Nitish Khobragade
+ * Copyright (c) 2026 Nitish Khobragade. All rights reserved.
+ * GitHub: https://github.com/nitishkhobragade/apna-radio
+ */
+
+/**
  * Extracts a YouTube playlist ID from various URL formats or raw ID string.
  */
 export function extractPlaylistId(input: string): string | null {
@@ -117,3 +124,4 @@ export function formatTime(seconds: number): string {
 }
 
 export * from './youtubeRss';
+export * from './youtubeSearch';

@@ -1,12 +1,17 @@
+/**
+ * Project: Apna Radio (अपना रेडियो - विंटेज ट्रांजिस्टर प्लेयर)
+ * Concept, Design & Architecture: Nitish Khobragade
+ * Copyright (c) 2026 Nitish Khobragade. All rights reserved.
+ * GitHub: https://github.com/nitishkhobragade/apna-radio
+ */
+
 import { useState, useEffect, useCallback } from 'react';
-import { Playlist, VideoItem } from '../types';
+import { Playlist, VideoItem, HistoryItem } from '../types';
 import { PRESET_PLAYLISTS } from '../config';
 import {
   extractPlaylistId,
   extractVideoId,
   fetchYouTubeOEmbed,
-  fetchYouTubePlaylistRss,
-  parseYouTubeRssXml,
   fetchFullPlaylistDataset,
   resolvePlaylistTrackTitles,
 } from '../utils/youtube';
@@ -14,6 +19,7 @@ import {
 const STORAGE_PLAYLISTS_KEY = 'apna_radio_saved_playlists_v3';
 const STORAGE_ACTIVE_PLAYLIST_KEY = 'apna_radio_active_playlist_id_v3';
 const STORAGE_ACTIVE_INDEX_KEY = 'apna_radio_active_song_index_v3';
+const STORAGE_HISTORY_KEY = 'apna_radio_play_history_v1';
 
 export function usePlaylists() {
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
@@ -66,7 +72,21 @@ export function usePlaylists() {
     return 0;
   });
 
-  // Save to localStorage whenever playlists change
+  // Client-Side Listening History
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_HISTORY_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to parse history from localStorage', e);
+    }
+    return [];
+  });
+
+  // Save playlists to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_PLAYLISTS_KEY, JSON.stringify(playlists));
@@ -93,6 +113,15 @@ export function usePlaylists() {
     }
   }, [currentSongIndex]);
 
+  // Save history to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
+    } catch (e) {
+      console.warn('Could not save history to localStorage', e);
+    }
+  }, [history]);
+
   // Auto-enrich any existing saved tracks in playlists that show generic "Track #"
   useEffect(() => {
     playlists.forEach((p) => {
@@ -109,6 +138,42 @@ export function usePlaylists() {
     });
   }, []);
 
+  // History Helper: Add song to history
+  const addToHistory = useCallback((track: {
+    videoId: string;
+    title: string;
+    channelTitle?: string;
+    artist?: string;
+    thumbnail?: string;
+    duration?: string;
+    durationSeconds?: number;
+  }) => {
+    if (!track.videoId) return;
+    setHistory((prev) => {
+      const filtered = prev.filter((h) => h.videoId !== track.videoId);
+      const newEntry: HistoryItem = {
+        videoId: track.videoId,
+        title: track.title,
+        channelTitle: track.channelTitle || track.artist || 'YouTube Music',
+        artist: track.artist || track.channelTitle || 'YouTube Music',
+        thumbnail: track.thumbnail || `https://img.youtube.com/vi/${track.videoId}/hqdefault.jpg`,
+        duration: track.duration || '03:45',
+        durationSeconds: track.durationSeconds || 225,
+        position: 0,
+        playedAt: Date.now(),
+      };
+      return [newEntry, ...filtered].slice(0, 100);
+    });
+  }, []);
+
+  const removeFromHistory = useCallback((videoId: string) => {
+    setHistory((prev) => prev.filter((h) => h.videoId !== videoId));
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+  }, []);
+
   // Current active playlist object
   const activePlaylist = playlists.find(p => p.id === activePlaylistId) || playlists[0] || PRESET_PLAYLISTS[0];
 
@@ -117,6 +182,21 @@ export function usePlaylists() {
     activePlaylist && activePlaylist.videos && activePlaylist.videos.length > 0
       ? activePlaylist.videos[Math.min(currentSongIndex, activePlaylist.videos.length - 1)] || activePlaylist.videos[0]
       : null;
+
+  // Whenever a song is active and playing, log it to history
+  useEffect(() => {
+    if (currentSong && currentSong.videoId && currentSong.title && !currentSong.title.startsWith('Track #')) {
+      addToHistory({
+        videoId: currentSong.videoId,
+        title: currentSong.title,
+        channelTitle: currentSong.channelTitle,
+        artist: currentSong.artist,
+        thumbnail: currentSong.thumbnail,
+        duration: currentSong.duration,
+        durationSeconds: currentSong.durationSeconds,
+      });
+    }
+  }, [currentSong?.videoId, currentSong?.title, addToHistory]);
 
   const selectPlaylist = useCallback((playlistId: string) => {
     const target = playlists.find(p => p.id === playlistId);
@@ -140,9 +220,7 @@ export function usePlaylists() {
   const prevSong = useCallback((playbackCurrentTime: number = 0) => {
     if (!activePlaylist || !activePlaylist.videos || activePlaylist.videos.length === 0) return;
 
-    // Requirement: if current song has played more than a few seconds (> 3s), restart current song
     if (playbackCurrentTime > 3) {
-      // Return false/stay at same index, calling component can seekTo(0)
       return { restarted: true, index: currentSongIndex };
     }
 
@@ -151,7 +229,53 @@ export function usePlaylists() {
     return { restarted: false, index: newIndex };
   }, [activePlaylist, currentSongIndex]);
 
-  // Add new playlist from YouTube URL or ID (100% Client-Side via RSS + CORS Proxies)
+  // Play a song from history -> Acts as a playlist and plays one-by-one!
+  const playHistorySong = useCallback((videoId: string) => {
+    if (history.length === 0) return;
+    const HISTORY_PLAYLIST_ID = 'playlist-history';
+    const index = history.findIndex(h => h.videoId === videoId);
+    const targetIndex = index >= 0 ? index : 0;
+
+    const historyPlaylist: Playlist = {
+      id: HISTORY_PLAYLIST_ID,
+      youtubePlaylistId: `custom-history-${Date.now()}`,
+      title: 'इतिहास के गाने (Listening History)',
+      description: 'Songs played from your personal listening history',
+      thumbnail: history[0]?.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80',
+      videos: history.map((h, i) => ({ ...h, position: i })),
+      isCustom: true,
+    };
+
+    setPlaylists(prev => [historyPlaylist, ...prev.filter(p => p.id !== HISTORY_PLAYLIST_ID)]);
+    setActivePlaylistId(HISTORY_PLAYLIST_ID);
+    setCurrentSongIndex(targetIndex);
+  }, [history]);
+
+  // Play entire history sequentially
+  const playAllHistory = useCallback(() => {
+    if (history.length === 0) return;
+    playHistorySong(history[0].videoId);
+  }, [history, playHistorySong]);
+
+  // Save history tracks as a custom new named playlist
+  const createPlaylistFromHistory = useCallback((customTitle?: string): Playlist => {
+    const newId = `custom-mix-${Date.now()}`;
+    const newPlaylist: Playlist = {
+      id: newId,
+      youtubePlaylistId: `custom-mix-${Date.now()}`,
+      title: customTitle || 'इतिहास की प्लेलिस्ट (History Mix)',
+      description: `Created from listening history (${history.length} songs)`,
+      thumbnail: history[0]?.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80',
+      videos: history.map((h, i) => ({ ...h, position: i })),
+      isCustom: true,
+    };
+    setPlaylists(prev => [newPlaylist, ...prev]);
+    setActivePlaylistId(newId);
+    setCurrentSongIndex(0);
+    return newPlaylist;
+  }, [history]);
+
+  // Add new playlist from YouTube URL or ID
   const addPlaylistFromYouTube = useCallback(async (urlOrId: string): Promise<{ success: boolean; message: string; playlist?: Playlist }> => {
     const playlistId = extractPlaylistId(urlOrId);
     const videoId = !playlistId ? extractVideoId(urlOrId) : null;
@@ -167,8 +291,6 @@ export function usePlaylists() {
       let newPlaylist: Playlist;
 
       if (playlistId) {
-        // Fast path: Check if this playlist is already one of the preset playlists
-        // Supports exact match or partial/prefix match (e.g. if URL has truncated ID or extra params)
         const existingPreset = PRESET_PLAYLISTS.find(
           p => p.youtubePlaylistId === playlistId ||
                playlistId.startsWith(p.youtubePlaylistId.slice(0, 15)) ||
@@ -185,10 +307,7 @@ export function usePlaylists() {
           };
         }
 
-        // 1. Fetch metadata directly via official YouTube oEmbed API
         const oembedPromise = fetchYouTubeOEmbed(playlistId, true);
-
-        // 2. Fetch full playlist dataset (Invidious API JSON or RSS XML)
         const datasetPromise = fetchFullPlaylistDataset(playlistId);
 
         const [oembed, dataset] = await Promise.all([oembedPromise, datasetPromise]);
@@ -213,7 +332,6 @@ export function usePlaylists() {
               }
             ];
 
-        // If any songs still have generic titles, enrich them
         if (videos.some(v => !v.title || v.title.startsWith('Track #') || v.title === 'Classic Track')) {
           resolvePlaylistTrackTitles(videos, (resolved) => {
             setPlaylists(latest => latest.map(item => item.id === `custom-${playlistId}` ? { ...item, videos: resolved } : item));
@@ -230,7 +348,6 @@ export function usePlaylists() {
           isCustom: true
         };
       } else if (videoId) {
-        // Single video URL support
         const oembed = await fetchYouTubeOEmbed(videoId, false);
         const title = oembed?.title || 'YouTube Track';
         const author = oembed?.author || 'YouTube';
@@ -247,6 +364,7 @@ export function usePlaylists() {
               videoId,
               title,
               channelTitle: author,
+              artist: author,
               duration: '03:45',
               durationSeconds: 225,
               thumbnail: thumb,
@@ -280,6 +398,69 @@ export function usePlaylists() {
     }
   }, []);
 
+  // Play a song directly from search results
+  const playSearchedSong = useCallback((track: {
+    videoId: string;
+    title: string;
+    author: string;
+    thumbnail: string;
+    duration?: string;
+    durationSeconds?: number;
+  }) => {
+    const videoItem: VideoItem = {
+      videoId: track.videoId,
+      title: track.title,
+      channelTitle: track.author,
+      artist: track.author,
+      thumbnail: track.thumbnail || `https://img.youtube.com/vi/${track.videoId}/hqdefault.jpg`,
+      duration: track.duration || '03:45',
+      durationSeconds: track.durationSeconds || 225,
+      position: 0,
+    };
+
+    // Immediately record in history
+    addToHistory({
+      videoId: track.videoId,
+      title: track.title,
+      channelTitle: track.author,
+      artist: track.author,
+      thumbnail: track.thumbnail,
+      duration: track.duration,
+      durationSeconds: track.durationSeconds,
+    });
+
+    setPlaylists(prev => {
+      const SEARCH_PLAYLIST_ID = 'playlist-searched-songs';
+      const existing = prev.find(p => p.id === SEARCH_PLAYLIST_ID);
+
+      if (existing) {
+        const withoutDuplicate = existing.videos.filter(v => v.videoId !== track.videoId);
+        const updatedVideos = [videoItem, ...withoutDuplicate].map((v, i) => ({ ...v, position: i }));
+        const updated: Playlist = {
+          ...existing,
+          title: 'खोजे गए गाने (Searched Tracks)',
+          thumbnail: track.thumbnail || existing.thumbnail,
+          videos: updatedVideos,
+        };
+        return [updated, ...prev.filter(p => p.id !== SEARCH_PLAYLIST_ID)];
+      } else {
+        const newSearchPlaylist: Playlist = {
+          id: SEARCH_PLAYLIST_ID,
+          youtubePlaylistId: `custom-search-${track.videoId}`,
+          title: 'खोजे गए गाने (Searched Tracks)',
+          description: 'Tracks searched and played directly from YouTube',
+          thumbnail: track.thumbnail,
+          videos: [videoItem],
+          isCustom: true,
+        };
+        return [newSearchPlaylist, ...prev];
+      }
+    });
+
+    setActivePlaylistId('playlist-searched-songs');
+    setCurrentSongIndex(0);
+  }, [addToHistory]);
+
   const syncTrackFromPlayer = useCallback((info: {
     videoId: string;
     title: string;
@@ -292,10 +473,8 @@ export function usePlaylists() {
         if (p.id !== activePlaylistId) return p;
 
         let updatedVideos = [...p.videos];
-
         let hasNewGenericTracks = false;
 
-        // If player discovered the full playlist video IDs from YouTube
         if (info.playlistIds && info.playlistIds.length > 1 && (updatedVideos.length <= 1 || updatedVideos.length < info.playlistIds.length)) {
           updatedVideos = info.playlistIds.map((vId, idx) => {
             const existing = updatedVideos.find(v => v.videoId === vId);
@@ -328,7 +507,6 @@ export function usePlaylists() {
           });
         }
 
-        // Update the active video title and artist
         if (info.videoId) {
           updatedVideos = updatedVideos.map((v, idx) => {
             const isTarget = v.videoId === info.videoId || (info.index !== undefined && idx === info.index);
@@ -382,11 +560,20 @@ export function usePlaylists() {
     activePlaylist,
     currentSong,
     currentSongIndex,
+    history,
+    historyCount: history.length,
+    addToHistory,
+    removeFromHistory,
+    clearHistory,
+    playHistorySong,
+    playAllHistory,
+    createPlaylistFromHistory,
     selectPlaylist,
     selectSong,
     nextSong,
     prevSong,
     addPlaylistFromYouTube,
+    playSearchedSong,
     syncTrackFromPlayer,
     deletePlaylist,
   };

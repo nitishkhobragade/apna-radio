@@ -1,14 +1,24 @@
+/**
+ * Project: Apna Radio (अपना रेडियो - विंटेज ट्रांजिस्टर प्लेयर)
+ * Concept, Design & Architecture: Nitish Khobragade
+ * Copyright (c) 2026 Nitish Khobragade. All rights reserved.
+ * GitHub: https://github.com/nitishkhobragade/apna-radio
+ */
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { VintageRadio } from './components/VintageRadio';
 import { ChaiStallAtmosphere } from './components/ChaiStallAtmosphere';
 import { AddPlaylistModal } from './components/AddPlaylistModal';
+import { SongSearchModal } from './components/SongSearchModal';
+import { HistoryModal } from './components/HistoryModal';
 import { PlaylistSelector } from './components/PlaylistSelector';
 import { ErrorToast, ToastMessage } from './components/ErrorToast';
 import { Footer } from './components/Footer';
 import { usePlaylists } from './hooks/usePlaylists';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { DEFAULT_YOUTUBE_PLAYLIST_ID } from './config';
+import { SearchResultItem } from './utils/youtubeSearch';
 import { KeyRound, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -18,11 +28,19 @@ export default function App() {
     activePlaylist,
     currentSong,
     currentSongIndex,
+    history,
+    historyCount,
     selectPlaylist,
     selectSong,
     nextSong,
     prevSong,
     addPlaylistFromYouTube,
+    playSearchedSong,
+    playHistorySong,
+    playAllHistory,
+    createPlaylistFromHistory,
+    removeFromHistory,
+    clearHistory,
     syncTrackFromPlayer,
     deletePlaylist,
   } = usePlaylists();
@@ -121,7 +139,14 @@ export default function App() {
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isSelectModalOpen, setIsSelectModalOpen] = useState<boolean>(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState<boolean>(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState<boolean>(false);
+
+  const handlePlaySearchedSong = useCallback((track: SearchResultItem) => {
+    playSearchedSong(track);
+    addToast(`अब बज रहा है: "${track.title}"`, 'success');
+  }, [playSearchedSong, addToast]);
 
   // Navigation handlers
   const handlePrev = useCallback(() => {
@@ -245,10 +270,13 @@ export default function App() {
       </div>
 
       <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col md:gap-1.5">
-        {/* Top Vintage Sign Header */}
+        {/* Top Vintage Sign Header with Quad Button Setup */}
         <Header
           onOpenAddPlaylist={() => setIsAddModalOpen(true)}
           onOpenSelectPlaylist={() => setIsSelectModalOpen(true)}
+          onOpenSearch={() => setIsSearchModalOpen(true)}
+          onOpenHistory={() => setIsHistoryModalOpen(true)}
+          historyCount={historyCount}
           activePlaylistName={activePlaylist?.title || 'The Ultimate Indian Bus Driver Playlist'}
           songCount={activePlaylist?.videos?.length || 0}
         />
@@ -317,6 +345,40 @@ export default function App() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddPlaylist={handleAddPlaylist}
+      />
+
+      {/* Direct YouTube Song Search & Instant Play Modal */}
+      <SongSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        onPlaySong={handlePlaySearchedSong}
+      />
+
+      {/* Listening History Modal (Plays as Sequential Playlist & Supports Save to Playlist) */}
+      <HistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        history={history}
+        onPlaySong={(videoId) => {
+          playHistorySong(videoId);
+          addToast('इतिहास से गाना बजाया जा रहा है', 'info');
+        }}
+        onPlayAll={() => {
+          playAllHistory();
+          addToast('इतिहास के सभी गाने प्लेलिस्ट के रूप में शुरू हुए', 'success');
+        }}
+        onRemoveItem={(videoId) => {
+          removeFromHistory(videoId);
+          addToast('गाना इतिहास से हटा दिया गया', 'info');
+        }}
+        onClearHistory={() => {
+          clearHistory();
+          addToast('पूरा इतिहास साफ कर दिया गया', 'info');
+        }}
+        onSaveAsPlaylist={(title) => {
+          const pl = createPlaylistFromHistory(title);
+          addToast(`नई प्लेलिस्ट बनाई गई: "${pl.title}"`, 'success');
+        }}
       />
 
       {/* Select Playlist Modal (for mobile or toggle button) */}

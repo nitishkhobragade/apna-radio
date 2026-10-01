@@ -1,3 +1,10 @@
+/**
+ * Project: Apna Radio (अपना रेडियो - विंटेज ट्रांजिस्टर प्लेयर)
+ * Concept, Design & Architecture: Nitish Khobragade
+ * Copyright (c) 2026 Nitish Khobragade. All rights reserved.
+ * GitHub: https://github.com/nitishkhobragade/apna-radio
+ */
+
 export interface VideoItem {
   videoId: string;
   title: string;
@@ -7,6 +14,10 @@ export interface VideoItem {
   position: number;
   duration?: string;
   durationSeconds?: number;
+}
+
+export interface HistoryItem extends VideoItem {
+  playedAt: number;
 }
 
 export interface Playlist {

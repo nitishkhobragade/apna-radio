@@ -1,0 +1,12 @@
+/* TEAM */
+Concept, UI & System Architecture: Nitish Khobragade
+Contact: github.com/nitishkhobragade
+Portfolio: https://nitishkhobragade.github.io/portfolio.nitish/
+From: India
+
+/* SITE */
+Language: Hindi / English
+Year: 2026
+Application: Apna Radio (Retro Indian Cassette Transistor)
+Copyright: (c) 2026 Nitish Khobragade. All rights reserved.
+Repository: https://github.com/nitishkhobragade/apna-radio
