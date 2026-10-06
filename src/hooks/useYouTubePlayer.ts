@@ -81,6 +81,20 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
           events: {
             onReady: (event: any) => {
               setIsReady(true);
+              try {
+                // Ensure YouTube embed element has allow="autoplay; encrypted-media; picture-in-picture"
+                const iframe =
+                  (typeof event.target?.getIframe === 'function' ? event.target.getIframe() : null) ||
+                  document.querySelector(`#${containerId} iframe`) ||
+                  document.getElementById(containerId);
+                if (iframe) {
+                  iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+                  iframe.setAttribute('playsinline', '1');
+                  iframe.setAttribute('allowfullscreen', 'true');
+                }
+              } catch (attrErr) {
+                console.warn('Could not set YouTube iframe attributes:', attrErr);
+              }
               event.target.setVolume(100);
               setVolumeState(100);
               const dur = event.target.getDuration();

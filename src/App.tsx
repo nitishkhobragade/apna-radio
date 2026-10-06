@@ -13,11 +13,13 @@ import { AddPlaylistModal } from './components/AddPlaylistModal';
 import { SongSearchModal } from './components/SongSearchModal';
 import { HistoryModal } from './components/HistoryModal';
 import { AddToPlaylistModal } from './components/AddToPlaylistModal';
+import { ExitConfirmationModal } from './components/ExitConfirmationModal';
 import { PlaylistSelector } from './components/PlaylistSelector';
 import { ErrorToast, ToastMessage } from './components/ErrorToast';
 import { Footer } from './components/Footer';
 import { usePlaylists } from './hooks/usePlaylists';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
+import { useMediaSession } from './hooks/useMediaSession';
 import { DEFAULT_YOUTUBE_PLAYLIST_ID } from './config';
 import { SearchResultItem } from './utils/youtubeSearch';
 import { VideoItem } from './types';
@@ -267,6 +269,137 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [togglePlay, handleSkipBack, handleForward, setVolume, volume, handleNext, handlePrev]);
+
+  // HTML5 Media Session API & Silent Audio Anchor for background playback on mobile / lock screen
+  useMediaSession({
+    currentSong,
+    isPlaying,
+    currentTime,
+    duration,
+    activePlaylistTitle: activePlaylist?.title,
+    onPlay: playVideo,
+    onPause: pauseVideo,
+    onNext: handleNext,
+    onPrev: handlePrev,
+    onSeekTo: seekTo,
+    onSkipSeconds: skipSeconds,
+  });
+
+  // Accidental Navigation Interception & Exit Confirmation
+  const [isExitModalOpen, setIsExitModalOpen] = useState<boolean>(false);
+  const allowExitRef = useRef<boolean>(false);
+
+  // Keep latest modal states in a ref so popstate handler always sees current open modals
+  const modalStatesRef = useRef({
+    isExitModalOpen,
+    isAddModalOpen,
+    isSelectModalOpen,
+    isSearchModalOpen,
+    isHistoryModalOpen,
+    isAddToPlaylistModalOpen,
+    isSetupModalOpen,
+    isPlaying,
+  });
+
+  useEffect(() => {
+    modalStatesRef.current = {
+      isExitModalOpen,
+      isAddModalOpen,
+      isSelectModalOpen,
+      isSearchModalOpen,
+      isHistoryModalOpen,
+      isAddToPlaylistModalOpen,
+      isSetupModalOpen,
+      isPlaying,
+    };
+  });
+
+  // History API back navigation interception (Android swipe back & hardware back button)
+  useEffect(() => {
+    // Prime the history state stack on mount so back navigation can be intercepted
+    if (!window.history.state || !window.history.state.apnaRadio) {
+      window.history.pushState({ apnaRadio: true }, '', window.location.href);
+    }
+
+    const handlePopState = () => {
+      // If user has confirmed exit in the modal, let the browser back navigate naturally
+      if (allowExitRef.current) {
+        return;
+      }
+
+      const {
+        isExitModalOpen: exitOpen,
+        isAddModalOpen: addOpen,
+        isSelectModalOpen: selectOpen,
+        isSearchModalOpen: searchOpen,
+        isHistoryModalOpen: historyOpen,
+        isAddToPlaylistModalOpen: addToPlOpen,
+        isSetupModalOpen: setupOpen,
+      } = modalStatesRef.current;
+
+      // 1. If Exit Modal was open and user pressed back, close exit modal and keep radio playing
+      if (exitOpen) {
+        setIsExitModalOpen(false);
+        window.history.pushState({ apnaRadio: true }, '', window.location.href);
+        return;
+      }
+
+      // 2. If any sub-modal is open, back button closes that modal first (native Android UX)
+      if (addOpen || selectOpen || searchOpen || historyOpen || addToPlOpen || setupOpen) {
+        setIsAddModalOpen(false);
+        setIsSelectModalOpen(false);
+        setIsSearchModalOpen(false);
+        setIsHistoryModalOpen(false);
+        setIsAddToPlaylistModalOpen(false);
+        setIsSetupModalOpen(false);
+        // Maintain the dummy state so next back gesture is still protected
+        window.history.pushState({ apnaRadio: true }, '', window.location.href);
+        return;
+      }
+
+      // 3. No sub-modal is open -> Show Retro Exit Confirmation Modal
+      setIsExitModalOpen(true);
+      // Immediately restore dummy history state so page does not unload while dialog is shown
+      window.history.pushState({ apnaRadio: true }, '', window.location.href);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // BeforeUnload safety confirmation when radio is actively playing
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isPlaying) {
+        e.preventDefault();
+        e.returnValue = 'क्या आप बाहर जाना चाहते हैं? (Do you really want to leave? Your music will stop).';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isPlaying]);
+
+  const handleConfirmExit = useCallback(() => {
+    allowExitRef.current = true;
+    setIsExitModalOpen(false);
+    pauseVideo();
+    // Navigate back or exit page
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = 'about:blank';
+    }
+  }, [pauseVideo]);
+
+  const handleCancelStay = useCallback(() => {
+    setIsExitModalOpen(false);
+    // Ensure history state is restored
+    if (!window.history.state || !window.history.state.apnaRadio) {
+      window.history.pushState({ apnaRadio: true }, '', window.location.href);
+    }
+  }, []);
 
   // Add Playlist submission with user feedback
   const handleAddPlaylist = async (urlOrId: string) => {
@@ -524,6 +657,16 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Retro Navigation Shield Exit Confirmation Modal */}
+      <ExitConfirmationModal
+        isOpen={isExitModalOpen}
+        onConfirmExit={handleConfirmExit}
+        onCancelStay={handleCancelStay}
+        currentSongTitle={currentSong?.title}
+        artist={currentSong?.channelTitle || currentSong?.artist}
+        isPlaying={isPlaying}
+      />
 
       {/* Global Toast Notifications */}
       <ErrorToast toasts={toasts} onDismiss={dismissToast} />
