@@ -22,6 +22,7 @@ import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { useMediaSession } from './hooks/useMediaSession';
 import { DEFAULT_YOUTUBE_PLAYLIST_ID } from './config';
 import { SearchResultItem } from './utils/youtubeSearch';
+import { SILENT_AUDIO_URI, playBackgroundAudio, pauseBackgroundAudio } from './utils/backgroundAudio';
 import { VideoItem } from './types';
 import { KeyRound, Sparkles } from 'lucide-react';
 
@@ -178,6 +179,7 @@ export default function App() {
   }, [createNewPlaylist, addToast]);
 
   const handlePlaySearchedSong = useCallback((track: SearchResultItem) => {
+    playBackgroundAudio();
     playSearchedSong(track);
     addToast(`अब बज रहा है: "${track.title}"`, 'success');
   }, [playSearchedSong, addToast]);
@@ -384,6 +386,7 @@ export default function App() {
   const handleConfirmExit = useCallback(() => {
     allowExitRef.current = true;
     setIsExitModalOpen(false);
+    pauseBackgroundAudio();
     pauseVideo();
     // Navigate back or exit page
     if (window.history.length > 1) {
@@ -395,11 +398,15 @@ export default function App() {
 
   const handleCancelStay = useCallback(() => {
     setIsExitModalOpen(false);
+    if (isPlaying) {
+      playBackgroundAudio();
+      playVideo();
+    }
     // Ensure history state is restored
     if (!window.history.state || !window.history.state.apnaRadio) {
       window.history.pushState({ apnaRadio: true }, '', window.location.href);
     }
-  }, []);
+  }, [isPlaying, playVideo]);
 
   // Add Playlist submission with user feedback
   const handleAddPlaylist = async (urlOrId: string) => {
@@ -485,7 +492,10 @@ export default function App() {
               activePlaylistId={activePlaylist?.id || ''}
               currentSongIndex={currentSongIndex}
               onSelectPlaylist={selectPlaylist}
-              onSelectSong={selectSong}
+              onSelectSong={(idx) => {
+                playBackgroundAudio();
+                selectSong(idx);
+              }}
               onDeletePlaylist={deletePlaylist}
               onOpenCreatePlaylist={() => setIsAddModalOpen(true)}
               isSidebar={true}
@@ -498,6 +508,17 @@ export default function App() {
           <Footer />
         </div>
       </div>
+
+      {/* Hidden Native HTML5 Audio Anchor for Android Chrome background playback retention */}
+      <audio
+        id="apna-radio-bg-audio-anchor"
+        src={SILENT_AUDIO_URI}
+        loop
+        playsInline
+        preload="auto"
+        className="hidden"
+        aria-hidden="true"
+      />
 
       {/* Hidden YouTube Iframe/Embed Element styled strictly so it never participates in page dimensions or flow */}
       <div
@@ -532,10 +553,12 @@ export default function App() {
         onClose={() => setIsHistoryModalOpen(false)}
         history={history}
         onPlaySong={(videoId) => {
+          playBackgroundAudio();
           playHistorySong(videoId);
           addToast('इतिहास से गाना बजाया जा रहा है', 'info');
         }}
         onPlayAll={() => {
+          playBackgroundAudio();
           playAllHistory();
           addToast('इतिहास के सभी गाने प्लेलिस्ट के रूप में शुरू हुए', 'success');
         }}
@@ -576,6 +599,7 @@ export default function App() {
           setIsSelectModalOpen(false);
         }}
         onSelectSong={(idx) => {
+          playBackgroundAudio();
           selectSong(idx);
           setIsSelectModalOpen(false);
         }}

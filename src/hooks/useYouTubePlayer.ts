@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PlayerStatus } from '../types';
+import { playBackgroundAudio, pauseBackgroundAudio } from '../utils/backgroundAudio';
 
 declare global {
   interface Window {
@@ -41,6 +42,11 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolumeState] = useState<number>(100);
   const [isBuffering, setIsBuffering] = useState<boolean>(false);
+
+  // Track user intent vs automatic browser background pausing
+  const isUserPausedRef = useRef<boolean>(false);
+  const isPlayingRef = useRef<boolean>(false);
+  isPlayingRef.current = isPlaying;
 
   // Stable callback refs
   const onSongEndedRef = useRef(onSongEnded);
@@ -114,6 +120,8 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
                     setPlayerStatus('PLAYING');
                     setIsPlaying(true);
                     setIsBuffering(false);
+                    isUserPausedRef.current = false;
+                    playBackgroundAudio();
                     const dur = event.target.getDuration();
                     if (dur) setDuration(dur);
 
@@ -138,9 +146,22 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
                     }
                     break;
                   case window.YT.PlayerState.PAUSED:
+                    // If the pause was triggered by mobile Chrome when document is hidden (screen locked/home pressed):
+                    if (document.hidden && !isUserPausedRef.current) {
+                      console.log('Mobile Chrome background pause countered; sustaining playback');
+                      playBackgroundAudio();
+                      try {
+                        event.target.playVideo();
+                      } catch {}
+                      setPlayerStatus('PLAYING');
+                      setIsPlaying(true);
+                      setIsBuffering(false);
+                      break;
+                    }
                     setPlayerStatus('PAUSED');
                     setIsPlaying(false);
                     setIsBuffering(false);
+                    pauseBackgroundAudio();
                     break;
                   case window.YT.PlayerState.BUFFERING:
                     setPlayerStatus('BUFFERING');
@@ -230,7 +251,44 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
     };
   }, [isPlaying]);
 
+  // Page Visibility API: Counteract mobile Chrome auto-pausing YouTube iframe when document is hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // User locked screen or switched apps
+        if (isPlayingRef.current && !isUserPausedRef.current) {
+          playBackgroundAudio();
+          if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
+            try {
+              playerRef.current.playVideo();
+            } catch (e) {
+              console.warn('Background sustain error:', e);
+            }
+          }
+        }
+      } else {
+        // User returned to foreground tab
+        if (isPlayingRef.current && !isUserPausedRef.current) {
+          playBackgroundAudio();
+          if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
+            try {
+              playerRef.current.playVideo();
+            } catch (e) {
+              console.warn('Foreground resume error:', e);
+            }
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const playVideo = useCallback(() => {
+    isUserPausedRef.current = false;
+    // Trigger native HTML5 audio anchor synchronously in user gesture
+    playBackgroundAudio();
     if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
       try {
         playerRef.current.playVideo();
@@ -241,6 +299,8 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
   }, []);
 
   const pauseVideo = useCallback(() => {
+    isUserPausedRef.current = true;
+    pauseBackgroundAudio();
     if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
       try {
         playerRef.current.pauseVideo();
@@ -297,6 +357,10 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
   const loadVideo = useCallback((videoId: string, autoPlay: boolean = true) => {
     if (!videoId) return;
     setCurrentTime(0);
+    if (autoPlay) {
+      isUserPausedRef.current = false;
+      playBackgroundAudio();
+    }
     if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
       try {
         if (autoPlay) {
@@ -315,6 +379,10 @@ export function useYouTubePlayer({ initialVideoId, onSongEnded, onError, onTrack
   const loadPlaylist = useCallback((playlistId: string, index: number = 0, autoPlay: boolean = true) => {
     if (!playlistId) return;
     setCurrentTime(0);
+    if (autoPlay) {
+      isUserPausedRef.current = false;
+      playBackgroundAudio();
+    }
     if (playerRef.current) {
       try {
         if (autoPlay && typeof playerRef.current.loadPlaylist === 'function') {
