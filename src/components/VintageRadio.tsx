@@ -30,6 +30,7 @@ interface VintageRadioProps {
   onSeek: (seconds: number) => void;
   onVolumeChange: (volume: number) => void;
   activePlaylistTitle: string;
+  playbackSource?: 'playlist' | 'search';
 }
 
 export const VintageRadio: React.FC<VintageRadioProps> = ({
@@ -47,6 +48,7 @@ export const VintageRadio: React.FC<VintageRadioProps> = ({
   onSeek,
   onVolumeChange,
   activePlaylistTitle,
+  playbackSource = 'playlist',
 }) => {
   // Calculate percentage of song played for tape reels & tuning needle
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 25;
@@ -133,10 +135,25 @@ export const VintageRadio: React.FC<VintageRadioProps> = ({
             ))}
           </div>
 
-          {/* Right: FM/AM Band Indicator */}
-          <div className="flex items-center gap-1 bg-[#1b1009] px-1.5 py-0.2 rounded border border-[#4a321f] text-[8.5px] sm:text-[9.5px] font-mono text-[#d6a563]">
-            <Radio className="w-2.5 h-2.5 text-[#f59e0b]" />
-            <span className="font-bold">BAND: FM 100.4</span>
+          {/* Right: FM/AM Band & Playback Mode Indicator Badge */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {playbackSource === 'search' ? (
+              <div
+                className="flex items-center gap-1 bg-[#2e170a] px-1.5 sm:px-2 py-0.5 rounded border border-[#f59e0b]/70 shadow-xs text-[7.5px] sm:text-[8.5px] font-mono text-[#fde047] font-bold"
+                title="रेडियो मोड: मिलते-जुलते गानों की अनवरत स्ट्रीमिंग सक्रिय है (Auto-Recommendations Active)"
+              >
+                <Radio className="w-2.5 h-2.5 text-[#f59e0b] animate-pulse" />
+                <span className="whitespace-nowrap">📻 रेडियो मोड (Auto-Recommendations Active)</span>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-1 bg-[#190f09] px-1.5 sm:px-2 py-0.5 rounded border border-[#593d25] text-[7.5px] sm:text-[8.5px] font-mono text-[#d6b080]"
+                title="प्लेलिस्ट मोड: गानों का क्रमानुसार प्रसारण (Sequential Play)"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                <span className="whitespace-nowrap">📼 प्लेलिस्ट मोड (Sequential Play)</span>
+              </div>
+            )}
           </div>
         </div>
 

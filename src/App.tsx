@@ -23,6 +23,7 @@ import { useMediaSession } from './hooks/useMediaSession';
 import { DEFAULT_YOUTUBE_PLAYLIST_ID } from './config';
 import { SearchResultItem } from './utils/youtubeSearch';
 import { SILENT_AUDIO_URI, playBackgroundAudio, pauseBackgroundAudio } from './utils/backgroundAudio';
+import { fetchRelatedSongs, RecommendedSong } from './utils/relatedSongs';
 import { VideoItem } from './types';
 import { KeyRound, Sparkles } from 'lucide-react';
 
@@ -78,6 +79,22 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // Playback mode state: 'playlist' (sequential playlist) or 'search' (infinite radio auto-recommendations)
+  const [playbackSource, setPlaybackSource] = useState<'playlist' | 'search'>('playlist');
+  const playbackSourceRef = useRef<'playlist' | 'search'>('playlist');
+  playbackSourceRef.current = playbackSource;
+
+  // Dynamic Radio Queue for Smart Auto-Play Recommendations
+  const [recommendedQueue, setRecommendedQueue] = useState<RecommendedSong[]>([]);
+  const recommendedQueueRef = useRef<RecommendedSong[]>([]);
+  recommendedQueueRef.current = recommendedQueue;
+
+  // Track recently played video IDs to prevent duplicate recommendations
+  const recentPlayedIdsRef = useRef<Set<string>>(new Set());
+
+  // Ref to route song ended events based on playback source
+  const handleSongEndedRef = useRef<() => void>(() => {});
+
   // YouTube Player hook
   const {
     containerId,
@@ -99,8 +116,8 @@ export default function App() {
   } = useYouTubePlayer({
     initialVideoId: currentSong?.videoId,
     onSongEnded: () => {
-      // Autoplay next song when current finishes
-      nextSong();
+      // Dispatches to context-aware handler (sequential playlist vs infinite radio recommendation)
+      handleSongEndedRef.current();
     },
     onError: (errorMsg) => {
       addToast(errorMsg, 'error');
@@ -178,11 +195,161 @@ export default function App() {
     addToast(`नई प्लेलिस्ट "${pl.title}" बनाई गई और गाना जोड़ दिया गया!`, 'success');
   }, [createNewPlaylist, addToast]);
 
-  const handlePlaySearchedSong = useCallback((track: SearchResultItem) => {
+  // Background Recommendations fetcher for Smart Auto-Play
+  const fetchNextRecommendations = useCallback(async (videoId: string, title?: string, author?: string) => {
+    if (!videoId) return;
+    try {
+      const related = await fetchRelatedSongs(videoId, title, author);
+      if (related && related.length > 0) {
+        setRecommendedQueue((currentQueue) => {
+          const existingIds = new Set(currentQueue.map((s) => s.videoId));
+          const filtered = related.filter(
+            (s) => !recentPlayedIdsRef.current.has(s.videoId) && !existingIds.has(s.videoId)
+          );
+          const updated = [...currentQueue, ...filtered];
+          recommendedQueueRef.current = updated;
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.warn('Recommendation fetch error in background:', err);
+    }
+  }, []);
+
+  // Play a recommended song from the dynamic radio queue
+  const handlePlayRecommendedSong = useCallback(
+    (track: RecommendedSong) => {
+      setPlaybackSource('search');
+      playbackSourceRef.current = 'search';
+      playBackgroundAudio();
+      recentPlayedIdsRef.current.add(track.videoId);
+
+      playSearchedSong({
+        videoId: track.videoId,
+        title: track.title,
+        author: track.author,
+        thumbnail: track.thumbnail,
+        duration: track.duration,
+        durationSeconds: track.durationSeconds,
+      });
+
+      addToast(`📻 अगला रेडियो गीत: "${track.title}"`, 'info');
+
+      // Pop track from queue
+      setRecommendedQueue((prev) => {
+        const remaining = prev.filter((t) => t.videoId !== track.videoId);
+        recommendedQueueRef.current = remaining;
+        return remaining;
+      });
+
+      // Fetch subsequent recommendations to keep pipeline infinite
+      fetchNextRecommendations(track.videoId, track.title, track.author);
+    },
+    [playSearchedSong, addToast, fetchNextRecommendations]
+  );
+
+  // Play a song from the Search Modal -> Switch to Search / Radio mode
+  const handlePlaySearchedSong = useCallback(
+    (track: SearchResultItem) => {
+      setPlaybackSource('search');
+      playbackSourceRef.current = 'search';
+      playBackgroundAudio();
+      recentPlayedIdsRef.current.add(track.videoId);
+
+      playSearchedSong(track);
+      addToast(`अब बज रहा है: "${track.title}"`, 'success');
+
+      // Reset dynamic queue for the newly searched song
+      setRecommendedQueue([]);
+      recommendedQueueRef.current = [];
+
+      fetchNextRecommendations(track.videoId, track.title, track.author);
+    },
+    [playSearchedSong, addToast, fetchNextRecommendations]
+  );
+
+  // Playlist Mode Handlers: Immediately switch mode to 'playlist' and clear dynamic auto-recommendations queue
+  const handleSelectPlaylist = useCallback(
+    (id: string) => {
+      setPlaybackSource('playlist');
+      playbackSourceRef.current = 'playlist';
+      setRecommendedQueue([]);
+      recommendedQueueRef.current = [];
+      selectPlaylist(id);
+    },
+    [selectPlaylist]
+  );
+
+  const handleSelectSong = useCallback(
+    (idx: number) => {
+      setPlaybackSource('playlist');
+      playbackSourceRef.current = 'playlist';
+      setRecommendedQueue([]);
+      recommendedQueueRef.current = [];
+      playBackgroundAudio();
+      selectSong(idx);
+    },
+    [selectSong]
+  );
+
+  const handlePlayHistorySong = useCallback(
+    (videoId: string) => {
+      setPlaybackSource('playlist');
+      playbackSourceRef.current = 'playlist';
+      setRecommendedQueue([]);
+      recommendedQueueRef.current = [];
+      playBackgroundAudio();
+      playHistorySong(videoId);
+      addToast('इतिहास से गाना बजाया जा रहा है', 'info');
+    },
+    [playHistorySong, addToast]
+  );
+
+  const handlePlayAllHistory = useCallback(() => {
+    setPlaybackSource('playlist');
+    playbackSourceRef.current = 'playlist';
+    setRecommendedQueue([]);
+    recommendedQueueRef.current = [];
     playBackgroundAudio();
-    playSearchedSong(track);
-    addToast(`अब बज रहा है: "${track.title}"`, 'success');
-  }, [playSearchedSong, addToast]);
+    playAllHistory();
+    addToast('इतिहास के सभी गाने प्लेलिस्ट के रूप में शुरू हुए', 'success');
+  }, [playAllHistory, addToast]);
+
+  // Context-aware song ended handler (Sequential playlist vs Infinite radio recommendations)
+  const handleSongEnded = useCallback(() => {
+    if (playbackSourceRef.current === 'search') {
+      const queue = recommendedQueueRef.current;
+      if (queue.length > 0) {
+        const nextTrack = queue[0];
+        handlePlayRecommendedSong(nextTrack);
+        return;
+      }
+
+      // Graceful fallback to classic hit from vault if queue is momentarily empty
+      if (playlists.length > 0 && playlists[0].videos && playlists[0].videos.length > 0) {
+        const unplayed = playlists[0].videos.filter((v) => !recentPlayedIdsRef.current.has(v.videoId));
+        const pool = unplayed.length > 0 ? unplayed : playlists[0].videos;
+        const fallback = pool[Math.floor(Math.random() * pool.length)];
+        handlePlayRecommendedSong({
+          videoId: fallback.videoId,
+          title: fallback.title,
+          author: fallback.channelTitle,
+          thumbnail: fallback.thumbnail,
+          duration: fallback.duration || '03:45',
+          durationSeconds: fallback.durationSeconds || 225,
+        });
+        addToast('📻 रेडियो पर क्लासिक धुन जारी रखी जा रही है', 'info');
+        return;
+      }
+    }
+
+    // Default: Sequential playlist mode
+    nextSong();
+  }, [nextSong, handlePlayRecommendedSong, playlists, addToast]);
+
+  useEffect(() => {
+    handleSongEndedRef.current = handleSongEnded;
+  }, [handleSongEnded]);
 
   // Navigation handlers
   const handlePrev = useCallback(() => {
@@ -207,6 +374,29 @@ export default function App() {
   }, [prevSong, currentTime, seekTo, playVideo, activePlaylist, playPreviousVideo]);
 
   const handleNext = useCallback(() => {
+    // If playing in search/radio mode and recommendations exist, skip to next recommended song
+    if (playbackSourceRef.current === 'search') {
+      if (recommendedQueueRef.current.length > 0) {
+        const nextTrack = recommendedQueueRef.current[0];
+        handlePlayRecommendedSong(nextTrack);
+        return;
+      }
+      if (playlists.length > 0 && playlists[0].videos && playlists[0].videos.length > 0) {
+        const unplayed = playlists[0].videos.filter((v) => !recentPlayedIdsRef.current.has(v.videoId));
+        const pool = unplayed.length > 0 ? unplayed : playlists[0].videos;
+        const fallback = pool[Math.floor(Math.random() * pool.length)];
+        handlePlayRecommendedSong({
+          videoId: fallback.videoId,
+          title: fallback.title,
+          author: fallback.channelTitle,
+          thumbnail: fallback.thumbnail,
+          duration: fallback.duration || '03:45',
+          durationSeconds: fallback.durationSeconds || 225,
+        });
+        return;
+      }
+    }
+
     const isCustomPlaylist =
       activePlaylist.isCustom &&
       activePlaylist.youtubePlaylistId &&
@@ -216,7 +406,7 @@ export default function App() {
       playNextVideo();
     }
     nextSong();
-  }, [nextSong, activePlaylist, playNextVideo]);
+  }, [nextSong, activePlaylist, playNextVideo, handlePlayRecommendedSong, playlists]);
 
   const handleSkipBack = useCallback(() => {
     skipSeconds(-10);
@@ -472,6 +662,7 @@ export default function App() {
               onSeek={seekTo}
               onVolumeChange={setVolume}
               activePlaylistTitle={activePlaylist?.title || 'The Ultimate Indian Bus Driver Playlist'}
+              playbackSource={playbackSource}
             />
 
             {/* Chai Stall Atmosphere Table with cutting chai and song information */}
@@ -480,6 +671,9 @@ export default function App() {
               artist={currentSong?.channelTitle}
               playlistName={activePlaylist?.title}
               onOpenAddToPlaylist={() => currentSong && handleOpenAddToPlaylist(currentSong)}
+              playbackSource={playbackSource}
+              recommendedQueue={recommendedQueue}
+              onPlayRecommendedSong={handlePlayRecommendedSong}
             />
           </div>
 
@@ -491,11 +685,8 @@ export default function App() {
               playlists={playlists}
               activePlaylistId={activePlaylist?.id || ''}
               currentSongIndex={currentSongIndex}
-              onSelectPlaylist={selectPlaylist}
-              onSelectSong={(idx) => {
-                playBackgroundAudio();
-                selectSong(idx);
-              }}
+              onSelectPlaylist={handleSelectPlaylist}
+              onSelectSong={handleSelectSong}
               onDeletePlaylist={deletePlaylist}
               onOpenCreatePlaylist={() => setIsAddModalOpen(true)}
               isSidebar={true}
@@ -553,14 +744,10 @@ export default function App() {
         onClose={() => setIsHistoryModalOpen(false)}
         history={history}
         onPlaySong={(videoId) => {
-          playBackgroundAudio();
-          playHistorySong(videoId);
-          addToast('इतिहास से गाना बजाया जा रहा है', 'info');
+          handlePlayHistorySong(videoId);
         }}
         onPlayAll={() => {
-          playBackgroundAudio();
-          playAllHistory();
-          addToast('इतिहास के सभी गाने प्लेलिस्ट के रूप में शुरू हुए', 'success');
+          handlePlayAllHistory();
         }}
         onRemoveItem={(videoId) => {
           removeFromHistory(videoId);
@@ -595,12 +782,11 @@ export default function App() {
         activePlaylistId={activePlaylist?.id || ''}
         currentSongIndex={currentSongIndex}
         onSelectPlaylist={(id) => {
-          selectPlaylist(id);
+          handleSelectPlaylist(id);
           setIsSelectModalOpen(false);
         }}
         onSelectSong={(idx) => {
-          playBackgroundAudio();
-          selectSong(idx);
+          handleSelectSong(idx);
           setIsSelectModalOpen(false);
         }}
         onDeletePlaylist={deletePlaylist}

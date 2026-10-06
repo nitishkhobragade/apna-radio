@@ -1,20 +1,36 @@
+/**
+ * Project: Apna Radio (अपना रेडियो - विंटेज ट्रांजिस्टर प्लेयर)
+ * Concept, Design & Architecture: Nitish Khobragade
+ * Copyright (c) 2026 Nitish Khobragade. All rights reserved.
+ * GitHub: https://github.com/nitishkhobragade/apna-radio
+ */
+
 import React, { useState } from 'react';
-import { Keyboard, Info, ListPlus } from 'lucide-react';
+import { Keyboard, Info, ListPlus, Radio, Sparkles, Play } from 'lucide-react';
+import { RecommendedSong } from '../utils/relatedSongs';
 
 interface ChaiStallAtmosphereProps {
   currentSongTitle?: string;
   artist?: string;
   playlistName?: string;
   onOpenAddToPlaylist?: () => void;
+  playbackSource?: 'playlist' | 'search';
+  recommendedQueue?: RecommendedSong[];
+  onPlayRecommendedSong?: (song: RecommendedSong) => void;
 }
 
 export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
   currentSongTitle,
   artist,
-  playlistName,
   onOpenAddToPlaylist,
+  playbackSource = 'playlist',
+  recommendedQueue = [],
+  onPlayRecommendedSong,
 }) => {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState<boolean>(false);
+  const [showUpNext, setShowUpNext] = useState<boolean>(false);
+
+  const hasRecommendations = playbackSource === 'search' && recommendedQueue && recommendedQueue.length > 0;
 
   return (
     <div className="relative w-full max-w-4xl mx-auto px-1 sm:px-2 mt-0.5 select-none shrink-0">
@@ -108,8 +124,25 @@ export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
           </div>
         )}
 
-        {/* Right: Add to playlist, Keyboard shortcuts and online indicator */}
+        {/* Right: Up Next toggle, Add to playlist, Keyboard shortcuts and online indicator */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Radio Mode: Up Next / Recommended Songs Toggle */}
+          {hasRecommendations && (
+            <button
+              type="button"
+              onClick={() => setShowUpNext((prev) => !prev)}
+              title="Up Next: मिलते-जुलते गीत (Auto-Recommendations Queue)"
+              className={`p-1 rounded border text-[9.5px] font-mono px-2 flex items-center gap-1 transition-all cursor-pointer ${
+                showUpNext
+                  ? 'bg-[#7c2d12] border-[#f59e0b] text-[#fef08a] shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                  : 'bg-[#2a170a] border-[#b45309] text-[#fde68a] hover:bg-[#3d2210]'
+              }`}
+            >
+              <Radio className="w-3 h-3 text-[#f59e0b] animate-pulse" />
+              <span className="font-bold whitespace-nowrap">Up Next ({recommendedQueue.length})</span>
+            </button>
+          )}
+
           {onOpenAddToPlaylist && currentSongTitle && (
             <button
               type="button"
@@ -125,7 +158,7 @@ export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
           {/* Keyboard shortcuts toggle */}
           <button
             type="button"
-            onClick={() => setShowKeyboardHelp(prev => !prev)}
+            onClick={() => setShowKeyboardHelp((prev) => !prev)}
             title="Keyboard Controls"
             className="p-1 rounded border border-[#4a331f] bg-[#1e130b] text-[#baa080] hover:text-[#fcd34d] hover:border-[#8c6239] transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-mono px-1.5"
           >
@@ -140,6 +173,55 @@ export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Up Next / मिलते-जुलते गीत Shelf (Shown when Radio Mode is active) */}
+      {showUpNext && hasRecommendations && (
+        <div className="mt-1.5 rounded-lg p-2.5 bg-[#20120a]/95 border-2 border-[#825c34] shadow-[0_10px_25px_rgba(0,0,0,0.8)] text-[#f4ecd8] animate-in fade-in duration-150">
+          <div className="flex items-center justify-between border-b border-[#5c3a1e] pb-1.5 mb-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#fcd34d] font-bold">
+              <Sparkles className="w-3.5 h-3.5 text-[#f59e0b] animate-spin" style={{ animationDuration: '6s' }} />
+              <span>मिलते-जुलते गीत • स्वतः बजेंगे (Up Next Auto-Queue)</span>
+            </div>
+            <span className="text-[9.5px] text-[#caa06a] font-sans hidden sm:inline">
+              गाना खत्म होने पर अगला गीत स्वतः शुरू होगा • क्लिक करके तुरंत सुनें
+            </span>
+          </div>
+
+          <div className="flex flex-row gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
+            {recommendedQueue.map((item) => (
+              <div
+                key={item.videoId}
+                onClick={() => onPlayRecommendedSong && onPlayRecommendedSong(item)}
+                className="group relative flex-shrink-0 w-36 sm:w-40 p-1.5 rounded-lg bg-[#2b180d] hover:bg-[#422513] border border-[#6b4728] hover:border-[#eab308] cursor-pointer transition-all flex flex-col gap-1 text-left shadow-sm hover:shadow-md"
+                title={`क्लिक करके तुरंत सुनें: ${item.title}`}
+              >
+                <div className="relative aspect-video rounded overflow-hidden bg-black/60">
+                  <img
+                    src={item.thumbnail}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/35 group-hover:bg-transparent transition-colors flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-[#1b0e06]/80 border border-[#dfb470] flex items-center justify-center group-hover:scale-110 transition-transform shadow">
+                      <Play className="w-3 h-3 text-[#fbbf24] ml-0.5" />
+                    </div>
+                  </div>
+                  <span className="absolute bottom-0.5 right-0.5 px-1 bg-black/85 rounded text-[7.5px] font-mono text-[#fef3c7]">
+                    {item.duration}
+                  </span>
+                </div>
+                <div className="text-[10px] font-bold text-[#fef08a] truncate font-serif leading-tight mt-0.5">
+                  {item.title}
+                </div>
+                <div className="text-[8.5px] text-[#d4b996] truncate font-mono">
+                  {item.author}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Dialog Popup */}
       {showKeyboardHelp && (
