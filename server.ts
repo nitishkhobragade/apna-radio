@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import {
   scrapePublicYouTubePlaylist,
+  scrapePublicYouTubeSearch,
   extractYoutubePlaylistId,
 } from './server/youtubeScraper.js';
 
@@ -12,6 +13,18 @@ dotenv.config();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Enable CORS so Firebase Hosting (apna-radiotube.web.app) and external origins can query API endpoints
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
 
   app.use(express.json());
 
@@ -22,6 +35,30 @@ async function startServer() {
       hasYouTubeApiKey: Boolean(process.env.YOUTUBE_API_KEY && process.env.YOUTUBE_API_KEY.trim() !== ''),
       time: new Date().toISOString()
     });
+  });
+
+  // Fast keyless YouTube Search endpoint
+  app.get('/api/search', async (req: Request, res: Response): Promise<void> => {
+    const query = (req.query.q as string) || '';
+    if (!query.trim()) {
+      res.json([]);
+      return;
+    }
+    try {
+      const videos = await scrapePublicYouTubeSearch(query);
+      res.json(
+        videos.map((v) => ({
+          videoId: v.videoId,
+          title: v.title,
+          author: v.channelTitle,
+          thumbnail: v.thumbnail,
+          duration: v.duration,
+          durationSeconds: v.durationSeconds,
+        }))
+      );
+    } catch (err: any) {
+      res.status(502).json({ error: err?.message || 'Search failed' });
+    }
   });
 
   // Fetch YouTube Playlist endpoint - dynamically scrapes public playlists without requiring API key,

@@ -196,25 +196,32 @@ export default function App() {
   }, [createNewPlaylist, addToast]);
 
   // Background Recommendations fetcher for Smart Auto-Play
-  const fetchNextRecommendations = useCallback(async (videoId: string, title?: string, author?: string) => {
-    if (!videoId) return;
-    try {
-      const related = await fetchRelatedSongs(videoId, title, author);
-      if (related && related.length > 0) {
-        setRecommendedQueue((currentQueue) => {
-          const existingIds = new Set(currentQueue.map((s) => s.videoId));
-          const filtered = related.filter(
-            (s) => !recentPlayedIdsRef.current.has(s.videoId) && !existingIds.has(s.videoId)
-          );
-          const updated = [...currentQueue, ...filtered];
-          recommendedQueueRef.current = updated;
-          return updated;
-        });
+  const fetchNextRecommendations = useCallback(
+    async (videoId: string, title?: string, author?: string, replaceExisting = false) => {
+      if (!videoId) return;
+      try {
+        const related = await fetchRelatedSongs(videoId, title, author);
+        if (related && related.length > 0) {
+          setRecommendedQueue((currentQueue) => {
+            const baseQueue = replaceExisting ? [] : currentQueue;
+            const existingIds = new Set(baseQueue.map((s) => s.videoId));
+            const filtered = related.filter(
+              (s) =>
+                s.videoId !== videoId &&
+                !recentPlayedIdsRef.current.has(s.videoId) &&
+                !existingIds.has(s.videoId)
+            );
+            const updated = [...baseQueue, ...filtered].slice(0, 20);
+            recommendedQueueRef.current = updated;
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.warn('Recommendation fetch error in background:', err);
       }
-    } catch (err) {
-      console.warn('Recommendation fetch error in background:', err);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Play a recommended song from the dynamic radio queue
   const handlePlayRecommendedSong = useCallback(
@@ -243,7 +250,7 @@ export default function App() {
       });
 
       // Fetch subsequent recommendations to keep pipeline infinite
-      fetchNextRecommendations(track.videoId, track.title, track.author);
+      fetchNextRecommendations(track.videoId, track.title, track.author, false);
     },
     [playSearchedSong, addToast, fetchNextRecommendations]
   );
@@ -263,7 +270,7 @@ export default function App() {
       setRecommendedQueue([]);
       recommendedQueueRef.current = [];
 
-      fetchNextRecommendations(track.videoId, track.title, track.author);
+      fetchNextRecommendations(track.videoId, track.title, track.author, true);
     },
     [playSearchedSong, addToast, fetchNextRecommendations]
   );
@@ -736,6 +743,8 @@ export default function App() {
         onClose={() => setIsSearchModalOpen(false)}
         onPlaySong={handlePlaySearchedSong}
         onOpenAddToPlaylist={handleOpenAddToPlaylist}
+        currentSong={currentSong}
+        recommendedQueue={recommendedQueue}
       />
 
       {/* Listening History Modal (Plays as Sequential Playlist & Supports Save to Playlist) */}

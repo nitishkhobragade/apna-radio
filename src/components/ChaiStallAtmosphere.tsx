@@ -177,10 +177,15 @@ export const ChaiStallAtmosphere: React.FC<ChaiStallAtmosphereProps> = ({
       {/* Up Next / मिलते-जुलते गीत Shelf (Shown when Radio Mode is active) */}
       {showUpNext && hasRecommendations && (
         <div className="mt-1.5 rounded-lg p-2.5 bg-[#20120a]/95 border-2 border-[#825c34] shadow-[0_10px_25px_rgba(0,0,0,0.8)] text-[#f4ecd8] animate-in fade-in duration-150">
-          <div className="flex items-center justify-between border-b border-[#5c3a1e] pb-1.5 mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-[#5c3a1e] pb-1.5 mb-2">
             <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#fcd34d] font-bold">
               <Sparkles className="w-3.5 h-3.5 text-[#f59e0b] animate-spin" style={{ animationDuration: '6s' }} />
               <span>मिलते-जुलते गीत • स्वतः बजेंगे (Up Next Auto-Queue)</span>
+              {(recommendedQueue[0]?.language || recommendedQueue[0]?.genre) && (
+                <span className="px-1.5 py-0.2 rounded bg-[#3b1f0e] border border-[#b45309] text-[9.5px] text-[#fef08a] font-mono">
+                  {[recommendedQueue[0]?.language, recommendedQueue[0]?.genre].filter(Boolean).join(' • ')}
+                </span>
+              )}
             </div>
             <span className="text-[9.5px] text-[#caa06a] font-sans hidden sm:inline">
               गाना खत्म होने पर अगला गीत स्वतः शुरू होगा • क्लिक करके तुरंत सुनें

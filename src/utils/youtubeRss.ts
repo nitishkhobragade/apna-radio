@@ -39,13 +39,13 @@ function formatSeconds(seconds: number): string {
 }
 
 const INVIDIOUS_INSTANCES = [
-  'https://invidious.nerdvpn.de',
-  'https://inv.tux.pizza',
+  'https://invidious.ducks.party',
   'https://invidious.private.coffee',
-  'https://yt.drgnz.club',
-  'https://invidious.jing.rocks',
-  'https://invidious.flokinet.to',
-  'https://invidious.perennialte.ch',
+];
+
+const PIPED_INSTANCES = [
+  'https://api.piped.private.coffee',
+  'https://pipedapi.ducks.party',
 ];
 
 /**
@@ -55,7 +55,7 @@ export async function fetchYouTubePlaylistRss(playlistId: string): Promise<strin
   const rssUrl = `https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(playlistId)}`;
 
   const fetchers: Array<() => Promise<string>> = [
-    // 1. Invidious instances direct RSS feed (frequently CORS-friendly and fast)
+    // 1. Invidious instances direct RSS feed
     ...INVIDIOUS_INSTANCES.map((base) => async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 4000);
@@ -74,26 +74,7 @@ export async function fetchYouTubePlaylistRss(playlistId: string): Promise<strin
       }
     }),
 
-    // 2. CodeTabs CORS Proxy for official YouTube RSS
-    async () => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4500);
-      try {
-        const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        if (text && (text.includes('<entry') || text.includes('<feed'))) {
-          return text;
-        }
-        throw new Error('Empty codetabs text');
-      } finally {
-        clearTimeout(timeout);
-      }
-    },
-
-    // 3. AllOrigins JSON Proxy
+    // 2. AllOrigins JSON Proxy
     async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 4500);
@@ -107,25 +88,6 @@ export async function fetchYouTubePlaylistRss(playlistId: string): Promise<strin
           return json.contents;
         }
         throw new Error('Empty allorigins contents');
-      } finally {
-        clearTimeout(timeout);
-      }
-    },
-
-    // 4. Corsproxy.io
-    async () => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      try {
-        const res = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        if (text && (text.includes('<entry') || text.includes('<feed'))) {
-          return text;
-        }
-        throw new Error('Empty corsproxy text');
       } finally {
         clearTimeout(timeout);
       }
@@ -326,8 +288,8 @@ export function parseYouTubeRssXml(xmlText: string, playlistId: string): ParsedP
  * Attempts to fetch playlist data using either Invidious JSON API or RSS XML feeds.
  */
 export async function fetchFullPlaylistDataset(playlistId: string): Promise<ParsedPlaylist | null> {
-  // Strategy 1: Try Invidious JSON API endpoints (fastest & most complete when active)
-  for (const base of INVIDIOUS_INSTANCES.slice(0, 3)) {
+  // Strategy 1: Try Invidious JSON API endpoints
+  for (const base of INVIDIOUS_INSTANCES) {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3500);
@@ -343,7 +305,6 @@ export async function fetchFullPlaylistDataset(playlistId: string): Promise<Pars
             const title = decodeHtmlEntities(v.title || `Track #${idx + 1}`);
             const author = decodeHtmlEntities(v.author || json.author || 'YouTube Artist');
             const durSec = typeof v.lengthSeconds === 'number' ? v.lengthSeconds : 210;
-            const thumb = v.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${vId}/hqdefault.jpg`;
 
             return {
               videoId: vId,
@@ -352,7 +313,7 @@ export async function fetchFullPlaylistDataset(playlistId: string): Promise<Pars
               artist: author,
               duration: formatSeconds(durSec),
               durationSeconds: durSec,
-              thumbnail: thumb,
+              thumbnail: `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`,
               position: idx,
             };
           });
@@ -365,7 +326,55 @@ export async function fetchFullPlaylistDataset(playlistId: string): Promise<Pars
         }
       }
     } catch {
-      // Continue to next mirror or XML
+      // Continue to Piped or XML
+    }
+  }
+
+  // Strategy 1b: Try Piped JSON API endpoints
+  for (const base of PIPED_INSTANCES) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(`${base}/playlists/${encodeURIComponent(playlistId)}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.relatedStreams && Array.isArray(json.relatedStreams) && json.relatedStreams.length > 0) {
+          const videos: VideoItem[] = json.relatedStreams
+            .map((v: any, idx: number) => {
+              const match = String(v.url || '').match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+              const vId = match ? match[1] : '';
+              if (!vId) return null;
+              const title = decodeHtmlEntities(v.title || `Track #${idx + 1}`);
+              const author = decodeHtmlEntities(v.uploaderName || json.uploader || 'YouTube Artist');
+              const durSec = typeof v.duration === 'number' && v.duration > 0 ? v.duration : 210;
+
+              return {
+                videoId: vId,
+                title,
+                channelTitle: author,
+                artist: author,
+                duration: formatSeconds(durSec),
+                durationSeconds: durSec,
+                thumbnail: `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`,
+                position: idx,
+              };
+            })
+            .filter(Boolean) as VideoItem[];
+
+          if (videos.length > 0) {
+            return {
+              title: decodeHtmlEntities(json.name || 'Classic Playlist'),
+              author: decodeHtmlEntities(json.uploader || 'YouTube'),
+              videos,
+            };
+          }
+        }
+      }
+    } catch {
+      // Continue to XML
     }
   }
 

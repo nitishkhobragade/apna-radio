@@ -5,55 +5,88 @@
  * GitHub: https://github.com/nitishkhobragade/apna-radio
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, X, Loader2, Play, Music, Sparkles, AlertCircle, Disc3, ListPlus } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Search, X, Loader2, Play, Music, Sparkles, AlertCircle, Disc3, ListPlus, Radio } from 'lucide-react';
 import { searchYouTubeVideos, SearchResultItem } from '../utils/youtubeSearch';
+import {
+  fetchRelatedSongs,
+  getSuggestedQueriesForSong,
+  RecommendedSong,
+} from '../utils/relatedSongs';
+import { VideoItem } from '../types';
 
 interface SongSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPlaySong: (track: SearchResultItem) => void;
   onOpenAddToPlaylist?: (track: SearchResultItem) => void;
+  currentSong?: VideoItem | null;
+  recommendedQueue?: RecommendedSong[];
 }
-
-const SUGGESTED_QUERIES = [
-  'Kishore Kumar Hits',
-  'Lata Mangeshkar Romantic',
-  'Mohammed Rafi Evergreen',
-  'Mukesh Dard Bhare Geet',
-  'R.D. Burman Classics',
-  '90s Bollywood Golden Melodies',
-  'Arijit Singh Acoustic',
-  'Jagjit Singh Ghazals',
-];
 
 export const SongSearchModal: React.FC<SongSearchModalProps> = ({
   isOpen,
   onClose,
   onPlaySong,
   onOpenAddToPlaylist,
+  currentSong,
+  recommendedQueue = [],
 }) => {
   const [query, setQuery] = useState<string>('');
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [autoSuggestedSongs, setAutoSuggestedSongs] = useState<RecommendedSong[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState<boolean>(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Focus input when modal opens
+  // Dynamically compute suggestion pills matching the current song's Language & Genre
+  const suggestionProfile = useMemo(() => {
+    return getSuggestedQueriesForSong(
+      currentSong?.title,
+      currentSong?.artist || currentSong?.channelTitle
+    );
+  }, [currentSong?.title, currentSong?.artist, currentSong?.channelTitle]);
+
+  // Focus input when modal opens & load language/genre matched suggested songs if needed
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
+
+      if (recommendedQueue && recommendedQueue.length > 0) {
+        setAutoSuggestedSongs(recommendedQueue);
+      } else if (currentSong?.videoId) {
+        let active = true;
+        setLoadingSuggestions(true);
+        fetchRelatedSongs(
+          currentSong.videoId,
+          currentSong.title,
+          currentSong.artist || currentSong.channelTitle
+        )
+          .then((items) => {
+            if (active && items.length > 0) {
+              setAutoSuggestedSongs(items);
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            if (active) setLoadingSuggestions(false);
+          });
+        return () => {
+          active = false;
+        };
+      }
     } else {
       // Cleanup on modal close
       abortControllerRef.current?.abort();
       setLoading(false);
     }
-  }, [isOpen]);
+  }, [isOpen, currentSong?.videoId, currentSong?.title, currentSong?.artist, currentSong?.channelTitle, recommendedQueue]);
 
   if (!isOpen) return null;
 
@@ -74,16 +107,19 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
 
     try {
       const items = await searchYouTubeVideos(trimmed, controller.signal);
+      if (controller.signal.aborted) return;
       setResults(items);
       if (items.length === 0) {
         setError('कोई गाना नहीं मिला। कृपया दूसरा नाम या स्पेलिंग आज़माएं।');
       }
     } catch (err: any) {
-      if (err.name === 'AbortError') return;
+      if (err?.name === 'AbortError' || controller.signal.aborted) return;
       setError(err.message || 'गाने खोजने में समस्या आई। कृपया पुनः प्रयास करें।');
       setResults([]);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -95,6 +131,8 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
   const handleClear = () => {
     setQuery('');
     setError(null);
+    setHasSearched(false);
+    setResults([]);
     inputRef.current?.focus();
   };
 
@@ -107,6 +145,9 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
     onPlaySong(track);
     onClose();
   };
+
+  const displaySuggestions =
+    recommendedQueue && recommendedQueue.length > 0 ? recommendedQueue : autoSuggestedSongs;
 
   return (
     <div
@@ -173,7 +214,7 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="गाने का नाम या गायक लिखें (उदा. Lag Ja Gale, Kishore Kumar)..."
+              placeholder="गाने का नाम या गायक लिखें (उदा. Chalre Chalre Waal, Kishore Kumar)..."
               disabled={loading}
               className="w-full pl-10 pr-24 py-2.5 sm:py-3 rounded-lg border-2 border-[#825c34]/60 bg-[#fff8ec] text-[#2c180b] placeholder-[#9a7653] font-serif text-xs sm:text-sm shadow-inner focus:outline-none focus:border-[#a8321d] focus:ring-2 focus:ring-[#a8321d]/30 transition-all"
             />
@@ -211,12 +252,13 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
           </div>
         </form>
 
-        {/* Quick Suggestion Pills */}
+        {/* Dynamic Language & Genre Suggestion Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 custom-scrollbar shrink-0">
-          <span className="text-[10px] text-[#78512b] font-mono shrink-0 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-[#d97706]" /> सुझाव:
+          <span className="text-[10px] text-[#78512b] font-mono shrink-0 flex items-center gap-1 font-bold">
+            <Sparkles className="w-3 h-3 text-[#d97706]" />
+            <span>सुझाव ({suggestionProfile.language}):</span>
           </span>
-          {SUGGESTED_QUERIES.map((pill) => (
+          {suggestionProfile.pills.map((pill) => (
             <button
               key={pill}
               type="button"
@@ -242,7 +284,7 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
                 यूट्यूब पर धुनें खोजी जा रही हैं...
               </div>
               <div className="text-[11px] text-[#7c532b] font-sans">
-                Searching tracks across golden era archives
+                Searching tracks across high-speed music archives
               </div>
             </div>
           )}
@@ -264,21 +306,117 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
             </div>
           )}
 
-          {/* 3. Empty State before initial search */}
+          {/* 3. Initial State before search: Show Language & Genre Matched Suggested Songs */}
           {!loading && !hasSearched && (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-[#7c532b] opacity-80">
-              <Music className="w-10 h-10 text-[#a3794e] mb-2 stroke-[1.5]" />
-              <div className="font-serif font-bold text-sm text-[#4a2e16]">
-                ऊपर सर्च बॉक्स में कोई भी गाना या कलाकार टाइप करें
-              </div>
-              <div className="text-xs text-[#7c532b] mt-1 max-w-sm">
-                गीत का नाम लिखकर खोजें और किसी भी ट्रैक पर क्लिक करके सीधे अपने विंटेज कैसेट पर सुनें।
-              </div>
-            </div>
+            <>
+              {displaySuggestions.length > 0 ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#78512b] px-1 pb-1 border-b border-[#825c34]/20">
+                    <span className="flex items-center gap-1 font-bold text-[#8c2d1b]">
+                      <Radio className="w-3.5 h-3.5 text-[#d97706]" />
+                      <span>
+                        सुझाए गए गीत ({suggestionProfile.language} • {suggestionProfile.genre})
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-[#a3794e]">क्लिक करके बजाएं</span>
+                  </div>
+
+                  {displaySuggestions.slice(0, 10).map((track) => (
+                    <div
+                      key={track.videoId}
+                      onClick={() => handleTrackClick(track)}
+                      className="group relative flex items-center gap-3 p-2 rounded-lg bg-[#fff8eb] hover:bg-[#f6ebd4] border border-[#a38c6c]/40 hover:border-[#8c2d1b] shadow-xs hover:shadow-md transition-all cursor-pointer active:scale-[0.99]"
+                    >
+                      <div className="relative w-16 h-12 sm:w-20 sm:h-14 rounded overflow-hidden bg-[#241306] shrink-0 border border-[#785324]">
+                        <img
+                          src={track.thumbnail}
+                          alt={track.title}
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src =
+                              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors flex items-center justify-center">
+                          <div className="w-6 h-6 rounded-full bg-[#8c2d1b] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                            <Play className="w-3 h-3 fill-current ml-0.5" />
+                          </div>
+                        </div>
+                        <div className="absolute bottom-0.5 right-0.5 px-1 py-0.2 bg-black/80 text-[8.5px] font-mono text-white rounded">
+                          {track.duration}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0 pr-1">
+                        <h4
+                          className="text-xs sm:text-sm font-bold text-[#381f10] group-hover:text-[#8c2d1b] font-serif line-clamp-2 leading-snug transition-colors"
+                          title={track.title}
+                        >
+                          {track.title}
+                        </h4>
+                        <div className="text-[10.5px] text-[#7c532b] truncate mt-0.5 font-sans">
+                          {track.author}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {onOpenAddToPlaylist && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenAddToPlaylist(track);
+                            }}
+                            title="प्लेलिस्ट में जोड़ें (Add to Playlist)"
+                            className="px-2 py-1 rounded border border-[#825c34]/50 bg-[#faecd6] hover:bg-[#ebd7b5] text-[#381f10] text-[10px] sm:text-xs font-serif font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <ListPlus className="w-3.5 h-3.5 text-[#8c2d1b]" />
+                            <span className="hidden sm:inline">जोड़ें</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTrackClick(track);
+                          }}
+                          className="px-2.5 py-1 rounded bg-[#8c2d1b] group-hover:bg-[#a63722] text-white font-serif font-bold text-[10px] sm:text-xs uppercase tracking-wider shadow-xs flex items-center gap-1 transition-colors"
+                        >
+                          <Play className="w-3 h-3 fill-current" />
+                          <span className="hidden xs:inline">बजाएं</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center text-[#7c532b] opacity-80">
+                  {loadingSuggestions ? (
+                    <>
+                      <Loader2 className="w-8 h-8 text-[#8c2d1b] animate-spin mb-2" />
+                      <div className="font-serif font-bold text-sm text-[#4a2e16]">
+                        वर्तमान गीत ({suggestionProfile.language} • {suggestionProfile.genre}) के अनुसार सुझाव तैयार हो रहे हैं...
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Music className="w-10 h-10 text-[#a3794e] mb-2 stroke-[1.5]" />
+                      <div className="font-serif font-bold text-sm text-[#4a2e16]">
+                        ऊपर सर्च बॉक्स में कोई भी गाना या कलाकार टाइप करें
+                      </div>
+                      <div className="text-xs text-[#7c532b] mt-1 max-w-sm">
+                        गीत का नाम लिखकर खोजें और किसी भी ट्रैक पर क्लिक करके सीधे अपने विंटेज कैसेट पर सुनें।
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
-          {/* 4. Results List */}
-          {!loading && results.length > 0 && (
+          {/* 4. Search Results List */}
+          {!loading && hasSearched && results.length > 0 && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-[11px] font-mono text-[#78512b] px-1 pb-1 border-b border-[#825c34]/20">
                 <span>परिणाम ({results.length} गाने मिले)</span>
@@ -363,7 +501,7 @@ export const SongSearchModal: React.FC<SongSearchModalProps> = ({
 
         {/* Modal Footer Bar */}
         <div className="mt-3 pt-2.5 border-t border-[#825c34]/30 flex items-center justify-between text-[10px] font-mono text-[#78512b] shrink-0">
-          <span>YouTube Direct Player Integration</span>
+          <span>YouTube Direct Player Integration • Lifetime Free API</span>
           <button
             type="button"
             onClick={onClose}

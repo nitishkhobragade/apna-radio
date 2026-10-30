@@ -321,3 +321,89 @@ export async function scrapePublicYouTubePlaylist(playlistIdOrUrl: string): Prom
     isCustom: true,
   };
 }
+
+/**
+ * Scrapes YouTube search results directly without requiring any API key.
+ */
+export async function scrapePublicYouTubeSearch(query: string): Promise<ScrapedVideoItem[]> {
+  const cleanQuery = (query || '').trim();
+  if (!cleanQuery) return [];
+
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanQuery)}&sp=EgIQAQ%253D%253D`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`YouTube search returned status ${response.status}`);
+  }
+
+  const html = await response.text();
+  const match =
+    html.match(/var ytInitialData = ({.*?});<\/script>/s) ||
+    html.match(/window\["ytInitialData"\] = ({.*?});<\/script>/s) ||
+    html.match(/ytInitialData\s*=\s*({.*?});/s);
+
+  if (!match || !match[1]) {
+    throw new Error('Could not find ytInitialData in YouTube search response.');
+  }
+
+  const parsed = JSON.parse(match[1]);
+  const videos: ScrapedVideoItem[] = [];
+  const seenIds = new Set<string>();
+
+  function scanSearch(obj: any): void {
+    if (!obj || typeof obj !== 'object' || videos.length >= 25) return;
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        if (videos.length >= 25) break;
+        scanSearch(item);
+      }
+      return;
+    }
+
+    if (obj.videoRenderer && obj.videoRenderer.videoId) {
+      const vr = obj.videoRenderer;
+      const videoId = String(vr.videoId).trim();
+      if (videoId.length === 11 && !seenIds.has(videoId)) {
+        seenIds.add(videoId);
+        const vTitle = vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Untitled Song';
+        const channel =
+          vr.ownerText?.runs?.[0]?.text ||
+          vr.longBylineText?.runs?.[0]?.text ||
+          vr.shortBylineText?.runs?.[0]?.text ||
+          'YouTube Music';
+        const durRaw =
+          vr.lengthText?.simpleText ||
+          vr.lengthText?.accessibility?.accessibilityData?.label ||
+          '';
+        const { formatted, seconds } = parseDurationText(durRaw);
+
+        videos.push({
+          videoId,
+          title: vTitle,
+          channelTitle: channel,
+          duration: formatted || '03:45',
+          durationSeconds: seconds || 225,
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          position: videos.length,
+        });
+      }
+    }
+
+    for (const val of Object.values(obj)) {
+      if (videos.length >= 25) break;
+      scanSearch(val);
+    }
+  }
+
+  scanSearch(parsed);
+  return videos;
+}
+
